@@ -1,0 +1,33 @@
+# --- secrets (values live in SOPS files, SSM, or the password manager; never plain here) ---
+.env
+.env.*
+!*.enc.env
+*.pem
+*.key
+*.crt
+*.p12
+*.credentials*
+keys.txt
+certs/
+
+# --- terraform run artifacts (state is remote; plans embed variable values) ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.auto.tfvars.example
+tfplan
+*.tfplan
+crash.log
+
+# --- ansible run artifacts ---
+*.retry
+.vault_pass*
+
+# --- working files (disposable by design) ---
+WHITEBOARD.md
+logs/
+
+# --- OS / editor noise ---
+Thumbs.db
+.DS_Store
