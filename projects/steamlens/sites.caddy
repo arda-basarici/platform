@@ -1,0 +1,61 @@
+steamlens.ardabasarici.dev {
+	# Cloudflare Origin CA certificate (SSL mode: Full (strict)) — a static
+	# pair issued from the dashboard, trusted only by Cloudflare's edge,
+	# which is exactly its one job. No ACME: behind the proxy, HTTP-01
+	# can't reach the box, and DNS-01 would demand a custom Caddy build.
+	tls /etc/caddy/certs/ardabasarici.dev.pem /etc/caddy/certs/ardabasarici.dev.key
+
+	# The audit's request-body finding: the app parses a POST body into
+	# memory before any gate runs, so the effective cap sits here, in front
+	# of it — an oversized body answers 413 and never reaches the app. 16KB
+	# is roomy; the real submit body is well under 1KB.
+	request_body {
+		max_size 16KB
+	}
+
+	# Baseline security headers — set at the proxy so every response wears
+	# them, whichever app route answered. HSTS: 180 days, deliberately
+	# without `preload` (preload is effectively irreversible and a decision
+	# to take on its own, not by default). nosniff pins declared MIME types;
+	# the referrer policy sends cross-site targets the origin, never full
+	# URLs (report paths name what a visitor read). The Permissions-Policy
+	# disowns the powerful APIs this site will never call.
+	#
+	# The Content-Security-Policy is NOT here by design: it carries a
+	# per-response nonce (Cloudflare's bot-detection injector reads it off
+	# the header and stamps its injected script), which a static config
+	# cannot mint — the app stamps it on HTML responses (serve/web/csp.py).
+	# Its frame-ancestors 'none' superseded the interim X-Frame-Options
+	# that used to sit in this block.
+	header {
+		Strict-Transport-Security "max-age=15552000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+
+	# Static assets are content-hash-busted (`?v=` from the app's
+	# static_version stamp), which is exactly what makes a year-long
+	# immutable cache safe: a deploy that changes any byte changes every
+	# URL, so no browser can hold a stale file — and a returning visitor
+	# re-downloads nothing.
+	@static path /static/*
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	# The app by its compose DNS name on the shared `web` network — nothing
+	# is published from the app container itself.
+	#
+	# flush_interval -1 disables response buffering, which the live-analysis
+	# narration needs: SSE frames must reach the browser the moment the job
+	# emits them, not when a buffer fills.
+	reverse_proxy steamlens-app-1:8000 {
+		flush_interval -1
+		# The app's contract (serve/gate.py): the LAST X-Forwarded-For
+		# entry is this proxy's truthful append. The incoming request
+		# already carries Cloudflare's own entries, so appending would
+		# put an edge IP last and collapse every visitor into one
+		# rate-limit bucket — replace instead: one entry, the verified
+		# visitor, and the contract holds unchanged.
+		header_up X-Forwarded-For {client_ip}
+	}
+}

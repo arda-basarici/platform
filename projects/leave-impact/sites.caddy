@@ -1,0 +1,24 @@
+# Frappe HR for leave-impact-agent (that repo's deploy/frappe/ owns the stack;
+# this is its one stanza). Same origin-CA pair — it covers *.ardabasarici.dev.
+# No request_body cap: Frappe uploads (attachments, CSV imports) are legitimate;
+# nginx inside the stack enforces its own 50m. No security-header block either:
+# Frappe's nginx already sends HSTS (2 y, preload) and nosniff, and a second copy
+# with different values is noise a browser resolves by taking the first.
+hr.ardabasarici.dev {
+	tls /etc/caddy/certs/ardabasarici.dev.pem /etc/caddy/certs/ardabasarici.dev.key
+
+	reverse_proxy frappe-frontend-1:8080 {
+		header_up X-Forwarded-For {client_ip}
+	}
+}
+
+# leave-impact world sites: one Frappe site per world version (ruled 2026-08-24),
+# same bench — the Host header selects the site, so each world is one stanza here
+# + one DNS record. Teardown removes the stanza with the site.
+hr-w1.ardabasarici.dev {
+	tls /etc/caddy/certs/ardabasarici.dev.pem /etc/caddy/certs/ardabasarici.dev.key
+
+	reverse_proxy frappe-frontend-1:8080 {
+		header_up X-Forwarded-For {client_ip}
+	}
+}

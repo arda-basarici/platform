@@ -1,0 +1,32 @@
+# The box proxy's global configuration — the part no tenant owns. Site stanzas
+# live one directory per project under projects/<name>/*.caddy and are pulled
+# in by the import at the bottom; this file changes only when a rule that
+# applies to every site changes.
+#
+# No bare-IP stanza anywhere: the origin answers only Cloudflare (the
+# DOCKER-USER firewall, firewall.sh in this directory), and Cloudflare dials
+# the origin exclusively over 443 (SSL Full (strict)) — visitor HTTP is
+# redirected at the edge and never reaches the box.
+#
+# The domain rides Cloudflare's proxy (orange-cloud), so the TCP peer Caddy
+# sees on 443 is a Cloudflare edge node, never the visitor. trusted_proxies
+# lets Caddy recover the visitor's IP from the edge's CF-Connecting-IP
+# header — and only when the peer really is in Cloudflare's published
+# ranges (cloudflare.com/ips, fetched 2026-08-10; the same list firewall.sh
+# pins — refresh both together), so a direct-to-IP caller cannot forge an
+# identity by sending the header himself.
+{
+	servers {
+		trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+		client_ip_headers CF-Connecting-IP
+	}
+}
+
+# Every tenant's stanzas. compose.yaml mounts the repository's projects/
+# directory at /etc/caddy/projects (read-only). One file per tenant, holding
+# all of that tenant's sites: Caddy's import allows a single wildcard in the
+# pattern (observed on 2.11: `*/*.caddy` is rejected at adapt time), so the
+# file name is fixed and the directory is the wildcard. A new tenant is a new
+# directory plus `docker compose up -d` of this stack — nothing in this file
+# changes (runbooks/add-a-tenant.md).
+import /etc/caddy/projects/*/sites.caddy

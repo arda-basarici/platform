@@ -13,7 +13,7 @@ operating reference.
 | AWS host | EC2 instance role | SSM Parameter Store (SecureString, standard tier) | `aws ssm put-parameter --overwrite --value file://…` from an admin terminal; never `--value` inline, never a Terraform variable |
 | GitHub Actions → AWS | GitHub OIDC → STS | no long-lived AWS secret exists | — |
 | GitHub Actions → the box | a forced-command ssh private key | GitHub environment secret (the one thing the workflow itself holds) | the environment's settings page |
-| the box (netcup) | an age identity per consumer scope | SOPS-encrypted files in git (`*.enc.env`), decrypted to a chmod-600 `.env` beside the stack | `sops edit`; recipients per `.sops.yaml` |
+| the box (netcup) | an age identity per consumer scope; today no key on the box, decryption happens on the workstation and the plaintext is piped over ssh | SOPS-encrypted files in git (`*.enc.env`): an application's beside its stack in its repository, decrypted to a 0600 `.env` beside the stack; the platform's under `projects/<name>/` here, decrypted to `/etc/platform/<name>/` (0600, outside the checkout) | `sops edit`; recipients per `.sops.yaml` |
 | a workstation | the user | user environment variables | the `api-key-onboarding` ceremony: `Read-Host` → User env var, never a chat or transcript |
 | Terraform | — | stores, paths, access policies, references only | a parameter's value is `value_wo` (write-only, never in state); the content is put out-of-band. If Terraform recreates a parameter, the placeholder is back: the production value is repopulated out-of-band before the dependent service counts as restored |
 

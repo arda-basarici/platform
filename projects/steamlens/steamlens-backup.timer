@@ -1,0 +1,12 @@
+# Nightly at 03:30 box-local time (CET/CEST on the current box) — the quiet
+# hours. Persistent runs a missed backup at the next boot instead of skipping
+# the day.
+[Unit]
+Description=steamlens nightly backup timer
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

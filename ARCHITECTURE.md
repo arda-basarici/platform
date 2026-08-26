@@ -125,7 +125,8 @@ flowchart TD
     MERGE --> TF["`Terraform stack:
     laptop — plan against remote state, read, apply`"]
     MERGE --> BOX["`box layer or a tenant stanza:
-    compose up -d of the proxy on the box —
+    git pull --ff-only in /srv/platform,
+    compose up -d of the proxy —
     Caddy validates the new config before
     replacing the old one`"]
     TF --> R1["blast radius: that stack"]
@@ -137,11 +138,11 @@ flowchart TD
 | Path | Holds | Lifecycle | Lives in (as of this snapshot) |
 |---|---|---|---|
 | `box/compose.yaml` | the proxy stack: Caddy, the `web` network declaration, mounts | slow | steam-lens `deploy/box/` → here (step 2) |
-| `box/Caddyfile` | the global block only (trusted proxies, client-IP header) + `import /etc/caddy/projects/*/*.caddy` | slow | steam-lens → here, split (step 2) |
+| `box/Caddyfile` | the global block only (trusted proxies, client-IP header) + `import /etc/caddy/projects/*/sites.caddy` | slow | steam-lens → here, split (step 2) |
 | `box/firewall.sh`, `box/box-firewall.service` | the DOCKER-USER origin-only chain, applied each boot | slow | steam-lens → here (step 2) |
 | `box/README.md` | provisioning + hardening runbook, until Ansible | slow | steam-lens → here (step 2) |
-| `projects/steamlens/` | `site.caddy` · `backup.sh` · `backup.service` · `backup.timer` · README (contract values) | fast | steam-lens → here (step 2) |
-| `projects/leave-impact/` | `hr.caddy` · `hr-w1.caddy` · MariaDB dump units · README (contract values incl. the deploy role ARN) | fast | stanzas from steam-lens's Caddyfile (step 2); README new (step 3) |
+| `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `backup.enc.env` (`BACKUP_PING_URL`) · README (contract values) | fast | steam-lens → here (step 2) |
+| `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · MariaDB dump units · README (contract values incl. the deploy role ARN) | fast | stanzas from steam-lens's Caddyfile (step 2); README's AWS rows at step 3 |
 | `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads, Bedrock invoke) · the instance, its EIP, the data volume · the GitHub OIDC provider + deploy role · SSM parameter *names* · the monthly budget · `user_data.sh.tftpl` | per-stack | leave-impact-agent `infra/` → here, unchanged (step 3) |
 | `terraform/stacks/edge/` | the Cloudflare zone and records | per-stack | not yet (backlog: import) |
 | `ansible/` | the box from bare metal | slow | not yet (step 4) |
@@ -178,18 +179,34 @@ assumed. Sensitive values already in the current state are cleared by that same
 migration (the attribute leaves the schema) and the state bucket's versioning is
 the remaining place old copies live; expiring noncurrent versions is on the backlog.
 
+## The box, on disk
+
+This repository is checked out on the box at `/srv/platform` and is deployment
+material only: no edits there, and a deploy is `git pull --ff-only` followed by
+`docker compose up -d` of the proxy, so a checkout that diverged fails the deploy
+instead of merging box-local state. `git rev-parse HEAD` in it answers which
+platform configuration is deployed (not which application images run; those are
+the applications' deploys). Machine-local material lives outside the checkout
+under `/etc/platform/`: `box/certs/` (the Origin CA pair), `<tenant>/` (files
+decrypted from that tenant's `*.enc.env`, pushed from the workstation). Cloning
+creates none of it; `box/README.md` provisions it. Applications keep their own
+`/srv/<name>/` directories.
+
 ## The tenant seam, mechanically
 
 A tenant is one directory under `projects/` and one line in the application's
-Compose file (`networks: web: external: true`). The proxy mounts `projects/`
-read-only at `/etc/caddy/projects/` and the global Caddyfile imports `*/*.caddy`
-(Caddy's `import` globs with Go's `filepath.Glob`, which matches one nested level;
-verified at the extraction step), so a new stanza is live on the next `compose up -d`
-of the proxy without touching `box/` or the proxy's Compose file. The values crossing
-the seam, and who produces each, are DESIGN's contract table. The backup units
-follow the same pattern: the timer and service under `projects/<name>/` are
-installed into `/etc/systemd/system/` by the runbook (later the playbook), and the
-script they run knows that tenant's data.
+Compose file (`networks: web: external: true`). The proxy mounts the checkout's
+`projects/` read-only at `/etc/caddy/projects/` and the global Caddyfile imports
+`*/sites.caddy`: one file per tenant holding all of its sites, because Caddy's
+`import` accepts a single wildcard in its pattern (`*/*.caddy` is rejected at
+adapt time; observed with `caddy validate` on 2.11.4 before the cutover, which is
+what turned the first draft's per-hostname files into one file per tenant). A new
+tenant's stanzas are live on the next `compose up -d` of the proxy without touching `box/` or
+the proxy's Compose file. The values crossing the seam, and who produces each, are
+DESIGN's contract table. The backup units follow the same pattern: the timer and
+service under `projects/<name>/` are installed into `/etc/systemd/system/` by the
+runbook (later the playbook), and the script they run, from the checkout, knows
+that tenant's data.
 
 ## Open items visible from here
 

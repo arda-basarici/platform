@@ -13,5 +13,9 @@ application/platform boundary.
 - `ARCHITECTURE.md` — how it is built: the hosts, the paths a request / deploy / backup / change take, the repository and state maps.
 - `SECRETS.md` — the secrets policy.
 
-Status: design settled 2026-08-26; extraction in progress. Nothing here is deployed
-from this repository yet.
+- `box/` — the shared layer on the VPS (proxy, firewall, runbook).
+- `projects/<name>/` — one directory per tenant: site stanzas, backup units, contract.
+- `runbooks/` — repeatable procedures, written as each is first exercised.
+
+Status: design settled 2026-08-26; the box layer extracted from steam-lens on
+2026-08-27, not yet deployed from this repository (the cutover is the next step).

@@ -1,0 +1,22 @@
+# Applies the DOCKER-USER origin firewall (firewall.sh alongside this file
+# in the platform checkout, /srv/platform/box/) once per boot.
+# Rules live in the kernel, so nothing needs to keep running afterwards —
+# oneshot + RemainAfterExit makes systemctl status show the applied state.
+#
+# Before=docker.service closes the boot-time gap: the rules are standing
+# before Docker starts forwarding traffic. The script creates the chain if
+# Docker hasn't yet (Docker adopts it — it only creates DOCKER-USER when
+# absent and never flushes it), so the ordering is for gap-freedom, not
+# correctness.
+
+[Unit]
+Description=DOCKER-USER origin firewall: only Cloudflare reaches published ports
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/srv/platform/box/firewall.sh
+
+[Install]
+WantedBy=multi-user.target

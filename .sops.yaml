@@ -1,0 +1,21 @@
+# SOPS creation rules — which files get encrypted, and to whom.
+#
+# SOPS encrypts the VALUES in a matched file and leaves the keys and structure
+# readable, so a git diff shows which secret changed and when, never the
+# plaintext. Only PUBLIC age keys appear here: a public key can encrypt but
+# never decrypt, so committing this file is safe by design. Decryption needs
+# a matching private key, which never enters this repository.
+#
+# Recipients are scoped per consumer (SECRETS.md). Today every platform file
+# has two: the admin workstation (daily use) and the recovery identity, whose
+# private key lives in the password manager, so losing the workstation does
+# not lose the values. No key lives on either host yet: values are decrypted
+# on the workstation and pushed to the host's /etc/platform/<scope>/. A
+# platform-box recipient, letting the box decrypt its own files, is a later
+# explicit change (it moves the host-compromise boundary) — one more key here
+# plus `sops updatekeys <file>`; the values are re-wrapped, never re-entered.
+creation_rules:
+  - path_regex: projects/[^/]+/.*\.enc\.env$
+    age: >-
+      age15zv5z24wpuvnm505x4rwc60g79glmq88s370d4jrg7psga0fep0q4xvufr,
+      age1pyl2d8qn4njd4dykyn7p92xnsw73e3wjul4esauzur4wnk32rs6qkscv78

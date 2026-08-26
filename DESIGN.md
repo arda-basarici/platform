@@ -146,7 +146,24 @@ owns, groups **by service**. The deeper rationale is change lifecycle and blast 
 
 The full map with what each path holds and where each file lives today is
 ARCHITECTURE's repository map; the mount-and-import mechanics that make "adding a
-tenant is one directory" true are its tenant-seam section.
+tenant is one directory" true are its tenant-seam section. One consequence of the
+mechanism, ruled 2026-08-27 when validation refused a two-wildcard import: a tenant's
+sites live in one file (`projects/<name>/sites.caddy`), not one file per hostname.
+The alternative that kept per-hostname files, one import line per tenant in the
+global Caddyfile, would make every new tenant an edit to `box/`, the cross-layer
+edit the seam exists to remove.
+
+**On the box, the repository is the deployed configuration.** The box checks this
+repository out at `/srv/platform` and the proxy runs from it; a box-layer deploy is
+a fast-forward-only pull plus `compose up -d`. The alternative, copying files onto
+the box one `scp` at a time (how steam-lens did it), leaves the box's real state
+unknowable from git; a checkout makes "what is deployed" a commit hash. Two rules
+make it hold: the checkout is never edited on the box, and cloning creates no
+runtime state. Machine-local material (the Origin CA pair, decrypted per-tenant
+files) lives under `/etc/platform/`, outside the checkout, so versioned
+configuration and mutable secret material never share a directory; the same split
+Ansible will later manage (ruled 2026-08-27, at the extraction; both halves cheap
+to revisit until the playbook encodes them).
 
 **Terraform state boundaries follow lifecycle and blast radius, not conceptual
 similarity.** `edge` holds only Cloudflare: zone, records, edge settings. The AWS-side

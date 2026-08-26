@@ -1,0 +1,45 @@
+# The box proxy stack — Caddy runs ONCE per host, owned by no project: every
+# project's stack joins the shared `web` network (created once per host:
+# `docker network create web`) and ships its site stanza under projects/<name>/.
+#
+# Runs from the platform checkout on the box (/srv/platform/box). The project
+# name is the stack's identity to Compose: it is what lets a checkout in a new
+# path adopt the container and named volumes an earlier path created, instead
+# of starting a second proxy beside them.
+name: box-proxy
+
+services:
+  caddy:
+    # Major-version float: Caddy 2's config surface is the contract the
+    # Caddyfile is written against; patch/minor security fixes arrive on re-pull.
+    image: caddy:2-alpine
+    restart: unless-stopped
+    # 443 only: Cloudflare dials the origin exclusively over HTTPS (SSL Full
+    # (strict)); port 80 was retired with the bare-IP stanza at the
+    # edge-hardening step. Even this one port answers only Cloudflare's
+    # ranges — the DOCKER-USER firewall (firewall.sh here) guards it.
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Every tenant's stanzas, imported by the Caddyfile's glob. Read-only:
+      # the checkout is deployment material, nothing on the box writes it.
+      - ../projects:/etc/caddy/projects:ro
+      # The Cloudflare Origin CA pair (cert + key): machine-local material
+      # under /etc/platform, never in the checkout — re-issuable from the
+      # dashboard at any time, so the box-side files are the whole story.
+      - /etc/platform/box/certs:/etc/caddy/certs:ro
+      # Named volumes, not bind mounts: Caddy's own state, survives
+      # recreation, nothing outside reads it.
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  web:
+    external: true
