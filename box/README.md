@@ -65,7 +65,9 @@ docker network create web
 # The platform checkout (public repository, no credential) and the runtime root.
 sudo git clone https://github.com/arda-basarici/platform /srv/platform
 sudo chown -R $USER:$USER /srv/platform
-sudo install -d -m 0750 -o root -g root /etc/platform
+# Traversable by everyone; each child directory carries its own protection
+# (box/ root-only, <tenant>/ owned by the login user).
+sudo install -d -m 0755 -o root -g root /etc/platform
 ```
 
 ## Hardening — verify, then fix only what fails
