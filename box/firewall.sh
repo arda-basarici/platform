@@ -20,7 +20,7 @@
 
 set -eu
 
-IFACE=eth0
+IFACE="${IFACE:-eth0}"   # the box's uplink; a systemd drop-in overrides it on a host whose NIC is named differently
 
 # Cloudflare's published IPv4 ranges (cloudflare.com/ips, fetched
 # 2026-08-10) — the same list the Caddyfile's trusted_proxies pins; if
