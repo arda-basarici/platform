@@ -27,6 +27,15 @@ aws ec2 describe-instances --region eu-central-1 --filters Name=tag:Name,Values=
   --query 'Reservations[].Instances[].[InstanceId,PublicIpAddress]' --output text
 ```
 
+After every launch, list by **security group**, not by tag: a launch whose tag
+spec was mangled by PowerShell quoting still launches, untagged (one such stray
+ran three hours on 2026-08-28 and blocked the group's delete).
+
+```powershell
+aws ec2 describe-instances --region eu-central-1 --filters Name=instance.group-name,Values=ansible-throwaway Name=instance-state-name,Values=running `
+  --query 'Reservations[].Instances[].[InstanceId,PublicIpAddress,Tags[?Key==`Name`].Value|[0]]' --output text
+```
+
 Put the public IP into `ansible/inventory/local.yml` (gitignored; shape in
 `example.yml`). If the workstation's IP changed, update the group's port-22
 rule first (`aws ec2 authorize-security-group-ingress` / `revoke-...`).
