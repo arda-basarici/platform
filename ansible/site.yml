@@ -9,6 +9,6 @@
   roles:
     - hardening
     - docker
-    # - firewall
-    # - proxy
+    - firewall
+    - proxy
     # - backups

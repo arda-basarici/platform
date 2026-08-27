@@ -1,0 +1,80 @@
+# README "Origin firewall": firewall.sh owns the DOCKER-USER chain, applied
+# each boot by box-firewall.service, both from the platform checkout. The
+# checkout is therefore made here, as its first consumer (the README lists it
+# under provisioning; the proxy role finds it present).
+
+- name: Create the platform checkout directory, owned by the login user
+  ansible.builtin.file:
+    path: /srv/platform
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+# update: false — the checkout is deployment material and each deploy is a
+# deliberate `git pull --ff-only` (README); this role only guarantees it exists
+# at the right place, it never moves the deployed revision.
+- name: Clone the platform repository
+  ansible.builtin.git:
+    repo: https://github.com/arda-basarici/platform
+    dest: /srv/platform
+    version: main
+    update: false
+  become_user: "{{ ansible_user }}"
+
+- name: Make firewall.sh executable
+  ansible.builtin.file:
+    path: /srv/platform/box/firewall.sh
+    mode: "0755"
+
+- name: Install box-firewall.service
+  ansible.builtin.copy:
+    remote_src: true
+    src: /srv/platform/box/box-firewall.service
+    dest: /etc/systemd/system/box-firewall.service
+    mode: "0644"
+  notify: Reload systemd
+
+# firewall.sh defaults to the box's uplink name (eth0). On a host whose NIC is
+# named otherwise (a cloud image: ens5, enX0, ...) the rules would bind to a
+# nonexistent interface and match nothing, so the real uplink is handed to the
+# unit through a drop-in. Absent on the box itself: the file is only written
+# when the default is wrong.
+- name: Set the uplink interface for firewall.sh where it is not eth0
+  when: ansible_facts['default_ipv4']['interface'] != 'eth0'
+  block:
+    - name: Create the unit's drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/box-firewall.service.d
+        state: directory
+        mode: "0755"
+    - name: Write the interface drop-in
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/box-firewall.service.d/iface.conf
+        mode: "0644"
+        content: |
+          # Managed by ansible (roles/firewall): this host's uplink.
+          [Service]
+          Environment=IFACE={{ ansible_facts['default_ipv4']['interface'] }}
+      notify: Reload systemd
+
+- name: Reload systemd before enabling the unit
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and apply the origin firewall now
+  ansible.builtin.systemd:
+    name: box-firewall.service
+    enabled: true
+    state: started
+
+- name: Read the DOCKER-USER chain
+  ansible.builtin.command: iptables -S DOCKER-USER
+  register: docker_user_chain
+  changed_when: false
+
+- name: Assert the chain ends in a DROP on the uplink
+  ansible.builtin.assert:
+    that:
+      - "'-j DROP' in docker_user_chain.stdout"
+      - "'--ctorigdstport 443' in docker_user_chain.stdout"
+    fail_msg: "DOCKER-USER does not carry the origin rules; see box/README.md, Origin firewall"
