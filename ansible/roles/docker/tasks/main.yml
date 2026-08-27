@@ -1,0 +1,64 @@
+# README "One-time host provisioning", the Docker part: Engine + compose plugin
+# from Docker's own apt repository (the distro's lags majors behind), the login
+# user in group docker, and the one shared proxy network every project joins.
+
+- name: Install the apt prerequisites
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - git
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the apt keyring directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Fetch Docker's signing key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: Add Docker's apt repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch={{ ansible_facts['architecture'] | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}
+      signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/debian {{ ansible_facts['distribution_release'] }} stable
+    filename: docker
+    state: present
+
+- name: Install Docker Engine and the compose plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Enable the Docker service
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Put the login user in group docker
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+
+# The shared proxy network. A shell instead of community.docker.docker_network:
+# that module runs on the host and needs the Docker Python SDK there, a package
+# the box would carry only for Ansible's sake.
+- name: Create the shared proxy network "web"
+  ansible.builtin.shell: docker network inspect web >/dev/null 2>&1 || { docker network create web && echo created; }
+  register: web_network
+  changed_when: "'created' in web_network.stdout"
