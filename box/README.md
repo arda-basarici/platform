@@ -4,8 +4,11 @@ One small VPS (netcup, Debian) runs every project as a self-contained Docker
 Compose stack behind a single box-owned Caddy (this directory), all joined by
 one shared Docker network. A project lands as its own Compose stack plus one
 directory of site stanzas under `projects/<name>/` (`runbooks/add-a-tenant.md`).
-Nothing here is box-specific: a rebuilt box replays this file. Ansible
-transcribes it (pre-M1 step 4); until then this is the runbook.
+Nothing here is box-specific: a rebuilt box replays this file, and
+`ansible/site.yml` is its transcription (one role per section below, proven
+on a blank Debian 12 host: `runbooks/ansible-test-host.md`). This file stays
+the readable runbook and the explanation of every choice; the roles are the
+executable form of the same steps.
 
 ## Layout on the box
 

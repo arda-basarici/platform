@@ -244,7 +244,15 @@ cleanup into a mini-project.
   directories). A failure names its section. `hardening` allows 22 before enabling
   ufw and checks the connection survives the sshd reload. rclone's Drive OAuth stays
   a manual step; the role verifies the remote exists and fails pointing at the
-  README. `proxy` stays broad until pressure splits it.
+  README. `proxy` stays broad until pressure splits it. Two adjustments from the
+  build (2026-08-28): `firewall` makes the `/srv/platform` checkout, as its first
+  consumer (`update: false`, the deploy owns the revision), so `proxy` finds it
+  present; and `firewall.sh` takes its uplink from an `IFACE` environment variable
+  (default `eth0`, the box), set through a systemd drop-in only on a host whose
+  interface is named otherwise, found when the test host's `ens5` left the rules
+  matching nothing and the bare IP answering. A test host has no Drive token, so
+  its inventory sets `backups_require_remote: false` and the missing remote is a
+  printed warning there, a failure on the box.
 - *The origin cert pair:* copied from a workstation path outside the repository
   (`~/.platform/certs/`), the same handling as the README's `scp`; no vault, no SOPS
   (re-issuable from the dashboard, nothing to back up). The test host gets a
