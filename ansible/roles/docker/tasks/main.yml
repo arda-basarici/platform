@@ -55,6 +55,14 @@
     groups: docker
     append: true
 
+# "Re-log to take effect" (README): group membership is fixed at login, and the
+# play's SSH session predates the usermod. Dropping the connection makes the
+# next task log in with the new group; without it, a later `docker compose`
+# run as the login user fails on the socket on the first run only (observed
+# 2026-08-28 on a blank host, passing on the second run).
+- name: Re-log so the docker group takes effect
+  ansible.builtin.meta: reset_connection
+
 # The shared proxy network. A shell instead of community.docker.docker_network:
 # that module runs on the host and needs the Docker Python SDK there, a package
 # the box would carry only for Ansible's sake.
