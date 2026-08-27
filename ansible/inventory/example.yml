@@ -1,0 +1,15 @@
+# Inventory shape. The committed file is an example only: the live box is
+# addressed by its ~/.ssh/config alias (the origin IP never enters this public
+# repository), and a test host's address is disposable. Copy to local.yml
+# (gitignored) and fill in the real target.
+all:
+  hosts:
+    box:
+      ansible_host: box            # ssh alias from ~/.ssh/config
+      ansible_user: arda
+      ansible_python_interpreter: /usr/bin/python3
+    # A throwaway test host (DESIGN, step 4): a fresh Debian 12 cloud image.
+    # throwaway:
+    #   ansible_host: 203.0.113.10
+    #   ansible_user: admin        # the Debian AMI's login user
+    #   ansible_ssh_private_key_file: ~/.ssh/ansible-throwaway

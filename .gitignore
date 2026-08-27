@@ -20,9 +20,10 @@ tfplan
 *.tfplan
 crash.log
 
-# --- ansible run artifacts ---
+# --- ansible run artifacts + the local inventory (real addresses stay out) ---
 *.retry
 .vault_pass*
+ansible/inventory/local.yml
 
 # --- working files (disposable by design) ---
 WHITEBOARD.md
