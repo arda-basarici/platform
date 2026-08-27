@@ -222,6 +222,40 @@ a different problem from the cross-repo edit pain that triggered the extraction,
 the guard exists because that is exactly the shape of task that turns two days of
 cleanup into a mini-project.
 
+**Step 4 rulings (2026-08-28, at the design interview):**
+
+- *Test host:* a hand-launched `t3.micro` Debian 12 in the leave-impact region
+  (default VPC, tagged, never in a stack's state), terminated on acceptance or at the
+  timebox end; a fresh instance is the blank host on every run. A local Hyper-V VM
+  was the alternative; the cloud host wins because the firewall check from the
+  workstation then runs from the real internet. Cheap to change.
+- *Acceptance, made precise:* the runbook stops at the proxy and the applications
+  are deployed by their own repositories, so "both sites serve" on a host that has no
+  application means: Caddy answers both hostnames over the installed origin cert
+  (`curl --resolve` on the host; a 502 is a pass, the upstream is absent by design),
+  and every other runbook section verifies (`sshd -T` key-only, ufw active with 22
+  the only allow, upgrade timer armed, Docker + `web` network, `DOCKER-USER` rule,
+  both units enabled). `ansible/verify.sh` is that checklist; from the workstation
+  the bare IP times out. A stub upstream for a 200 was rejected: it proves nothing
+  the 502 does not and adds test-only material to the roles.
+- *Roles:* one per runbook section, run in a fixed order because they depend on each
+  other: `hardening` -> `docker` -> `firewall` (needs Docker's chains) -> `proxy`
+  (checkout, `/etc/platform`, certs, `web`, compose) -> `backups` (needs the proxy's
+  directories). A failure names its section. `hardening` allows 22 before enabling
+  ufw and checks the connection survives the sshd reload. rclone's Drive OAuth stays
+  a manual step; the role verifies the remote exists and fails pointing at the
+  README. `proxy` stays broad until pressure splits it.
+- *The origin cert pair:* copied from a workstation path outside the repository
+  (`~/.platform/certs/`), the same handling as the README's `scp`; no vault, no SOPS
+  (re-issuable from the dashboard, nothing to back up). The test host gets a
+  self-signed pair; the real key never leaves the workstation for a test.
+- *Control node:* Ansible runs from a Unix-like control node; today that is WSL, with
+  a dedicated key generated there (never under the repository tree), a gitignored
+  local inventory for the test host and a committed example. The live box, when it
+  is ever a target, is addressed by its ssh alias so the origin IP stays out of the
+  public repository. Gate before the timebox starts: `ansible -m ping` against the
+  test host, proving install, key, inventory and reachability together.
+
 **Backlog** (the repository's TODO, not this document): the Cloudflare import into
 `edge` · an authenticated CI `plan` (identity + redaction first), then apply-from-CI
 behind an approval gate · SNS subscription for the AWS anomaly alert, state-bucket
