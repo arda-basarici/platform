@@ -1,0 +1,55 @@
+# README "Hardening": ssh key-only, firewall default-deny with 22 the ONLY
+# allowance, security patches on a timer. Order is lockout order — the ssh
+# reload is checked to have kept the connection, and 22 is allowed BEFORE ufw
+# is enabled, while the session that would be locked out is still open.
+
+- name: Install the sshd hardening drop-in
+  ansible.builtin.copy:
+    src: 50-hardening.conf
+    dest: /etc/ssh/sshd_config.d/50-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: sshd -t -f %s
+  notify: Reload ssh
+
+- name: Apply the ssh reload now, while this session can catch a lockout
+  ansible.builtin.meta: flush_handlers
+
+- name: Confirm the connection survived the sshd reload
+  ansible.builtin.wait_for_connection:
+    timeout: 60
+
+- name: Install ufw and unattended-upgrades
+  ansible.builtin.apt:
+    name:
+      - ufw
+      - unattended-upgrades
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Allow ssh before the firewall is enabled
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    comment: ssh
+
+# No 80/443 allowance on purpose: the web ports' guard is the DOCKER-USER
+# layer (roles/firewall), and default-deny is what closes the IPv6
+# docker-proxy path (README, "Origin firewall").
+- name: Enable ufw, default deny incoming
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+
+- name: Arm the security-update timers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer

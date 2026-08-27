@@ -1,0 +1,14 @@
+# The box, transcribed from box/README.md. One play, the roles in a FIXED order
+# because each depends on the one before (DESIGN, "Step 4 rulings"):
+#   hardening -> docker -> firewall (needs Docker's chains) -> proxy -> backups.
+# A failure names its section. Roles still to be written are listed commented
+# so the order is visible before they exist.
+- name: The box
+  hosts: all
+  become: true
+  roles:
+    - hardening
+    - docker
+    # - firewall
+    # - proxy
+    # - backups
