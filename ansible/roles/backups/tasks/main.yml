@@ -1,0 +1,68 @@
+# projects/steamlens/README.md "Backups", the platform's side: the two tools,
+# the tenant's runtime directory, the units from the checkout, the timer.
+# The secret (backup.env) is pushed out-of-band per SECRETS.md and the unit
+# tolerates its absence; the Drive OAuth is manual and only verified here.
+
+- name: Install sqlite3 and rclone
+  ansible.builtin.apt:
+    name:
+      - sqlite3
+      - rclone
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# Owned by the login user so later secret pushes need no sudo (a piped ssh
+# has no tty to ask on).
+- name: Create the tenant's runtime directory
+  ansible.builtin.file:
+    path: /etc/platform/steamlens
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0750"
+
+- name: Make backup.sh executable
+  ansible.builtin.file:
+    path: /srv/platform/projects/steamlens/backup.sh
+    mode: "0755"
+
+- name: Install the backup units from the checkout
+  ansible.builtin.copy:
+    remote_src: true
+    src: "/srv/platform/projects/steamlens/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - steamlens-backup.service
+    - steamlens-backup.timer
+  notify: Reload systemd
+
+- name: Reload systemd before enabling the timer
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable the nightly timer
+  ansible.builtin.systemd:
+    name: steamlens-backup.timer
+    enabled: true
+    state: started
+
+- name: Look for the rclone remote "gdrive" as the login user
+  ansible.builtin.command: rclone listremotes
+  become_user: "{{ ansible_user }}"
+  register: rclone_remotes
+  changed_when: false
+
+- name: Fail when the remote is missing (the box)
+  ansible.builtin.fail:
+    msg: >-
+      rclone remote "gdrive:" is not configured for {{ ansible_user }}; the Drive
+      OAuth is a manual step, see projects/steamlens/README.md, "One-time setup".
+  when: backups_require_remote and 'gdrive:' not in rclone_remotes.stdout_lines
+
+- name: Warn when the remote is missing (a test host)
+  ansible.builtin.debug:
+    msg: >-
+      rclone remote "gdrive:" is not configured; backups_require_remote is false,
+      so this host is treated as a test host and the timer will fail until it is.
+  when: not backups_require_remote and 'gdrive:' not in rclone_remotes.stdout_lines

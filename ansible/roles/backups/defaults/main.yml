@@ -1,0 +1,7 @@
+# The rclone remote backup.sh ships to must exist for the login user; its Drive
+# OAuth is a manual step (projects/steamlens/README.md, "One-time setup") that
+# this role verifies and never performs. On the box a missing remote is a
+# failure that names this section. A test host never has the remote and never
+# should (the real token stays off it): its local inventory sets this false,
+# and the check becomes a printed warning.
+backups_require_remote: true

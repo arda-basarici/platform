@@ -37,6 +37,12 @@ check "DOCKER-USER: drop the rest"       "1"  "$(iptables -S DOCKER-USER | grep 
 # upstream is absent by design on a bare host, so 502 is the pass.
 check "certs installed (key 0600)" "600" "$(stat -c %a /etc/platform/box/certs/ardabasarici.dev.key 2>/dev/null)"
 check "only caddy publishes a port" "box-proxy-caddy-1" "$(docker ps --format '{{.Names}} {{.Ports}}' | grep -- '->' | awk '{print $1}' | tr '\n' ' ' | sed 's/ $//')"
+# --- Backups (the remote itself is manual; a test host has none)
+check "steamlens-backup.timer enabled" "enabled" "$(systemctl is-enabled steamlens-backup.timer 2>/dev/null)"
+check "steamlens-backup.timer armed"   "1" "$(systemctl list-timers steamlens-backup.timer --all --no-legend | grep -c steamlens-backup)"
+check "/etc/platform/steamlens 0750"   "750" "$(stat -c %a /etc/platform/steamlens 2>/dev/null)"
+check "sqlite3 + rclone present"       "0" "$(command -v sqlite3 >/dev/null && command -v rclone >/dev/null; echo $?)"
+
 for host in steamlens.ardabasarici.dev hr.ardabasarici.dev hr-w1.ardabasarici.dev; do
     code=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "$host:443:127.0.0.1" "https://$host/" 2>/dev/null)
     case "$code" in 200|502) echo "PASS  caddy serves $host ($code)";; *) echo "FAIL  caddy serves $host: got [$code]"; fails=$((fails+1));; esac
