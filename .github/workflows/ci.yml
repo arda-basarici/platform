@@ -39,7 +39,11 @@ jobs:
       # One init + validate per stack, without a backend: the syntax and the
       # provider schemas are checked, the state is never touched. `-lockfile=
       # readonly` fails if a stack's lock file no longer matches its constraints,
-      # so a provider bump is always a deliberate commit.
+      # so a provider bump is always a deliberate commit. A lock file records one
+      # `h1:` package hash per platform it was initialized on, so a new stack's
+      # lock needs `terraform providers lock -platform=windows_amd64
+      # -platform=linux_amd64` on the laptop before this runner can init it
+      # (first run, 2026-08-27, failed on a Windows-only lock).
       - name: terraform validate (every stack)
         run: |
           set -euo pipefail
