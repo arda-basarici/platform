@@ -163,21 +163,22 @@ DynamoDB.
 | `leave-impact-prod` | `leave-impact-agent/terraform.tfstate` (unchanged by the move) | the app host and its deploy path |
 | `edge` | to be chosen at import | every hostname |
 
-**Secret values and state, as it stands and as it will be.** Today the
-`aws_ssm_parameter` resources are created with a placeholder `value` and
-`ignore_changes = [value]`. That stops an apply from reverting the real content (put
-from a terminal with `--value file://…`) but does not keep it out of state: refresh
-still reads the parameter, decrypted, and stores it marked sensitive. Assume the
-current state file holds the three values. The fix, at the AWS-stack move, is the
-provider's write-only argument: `value_wo` + `value_wo_version` instead of `value`,
-which the provider never persists. Two cautions govern the migration: the switch may
-force replacement of the parameter, which would destroy the out-of-band value, so
-the three values are re-put immediately after and read back; and the property is
-proven on a disposable parameter first (create → apply → overwrite via CLI → refresh
-→ `terraform state pull` → search for the secret), so the claim is observed, not
-assumed. Sensitive values already in the current state are cleared by that same
-migration (the attribute leaves the schema) and the state bucket's versioning is
-the remaining place old copies live; expiring noncurrent versions is on the backlog.
+**Secret values and state.** The `aws_ssm_parameter` resources carry a placeholder
+through the provider's write-only argument (`value_wo` + `value_wo_version`); the
+provider sends it once and never reads the value back, so the real content, put
+out-of-band from a terminal, never enters state. Proven 2026-08-27 on a disposable
+parameter (create → apply → overwrite via the CLI → `apply -refresh-only` → `state
+pull`: the marker string absent, `value` empty, only the version counter moved), then
+applied to the three production parameters. Until that day the resources used
+`value` + `ignore_changes = [value]`, which kept the value out of plans but not out
+of state: refresh read the parameter decrypted and stored it marked sensitive, and
+the state file did hold the certificate and the private key (verified by length
+before the migration). The migration cleared them from the current state (serial
+11 holds no key material); the state bucket's versioning is where old copies still
+live, so expiring noncurrent versions moved up the backlog. Two facts govern any
+future change here: the switch was an in-place update, not a replacement; and a
+change to `value_wo_version` makes the next apply write the placeholder over the
+real value, so the values are saved first and re-put right after, then read back.
 
 ## The box, on disk
 
