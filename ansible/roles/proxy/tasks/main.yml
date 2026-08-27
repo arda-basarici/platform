@@ -1,0 +1,48 @@
+# README "Domain + TLS" and "The proxy: bring-up": the machine-local runtime
+# root, the origin cert pair, and the box-owned Caddy stack from the checkout.
+
+# Traversable by everyone; each child carries its own protection.
+- name: Create the runtime root /etc/platform
+  ansible.builtin.file:
+    path: /etc/platform
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create the certificate directory
+  ansible.builtin.file:
+    path: /etc/platform/box/certs
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+# The key readable by root only; Caddy runs as root in the official image and
+# reads it through a read-only mount.
+- name: Install the origin certificate
+  ansible.builtin.copy:
+    src: "{{ platform_certs_dir }}/ardabasarici.dev.pem"
+    dest: /etc/platform/box/certs/ardabasarici.dev.pem
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install the origin private key
+  ansible.builtin.copy:
+    src: "{{ platform_certs_dir }}/ardabasarici.dev.key"
+    dest: /etc/platform/box/certs/ardabasarici.dev.key
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+# `docker compose up -d` is idempotent; its progress lines say what it did, so
+# "changed" is read off them instead of the docker SDK (not on the host).
+- name: Bring up the proxy stack
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: /srv/platform/box
+  become_user: "{{ ansible_user }}"
+  register: compose_up
+  changed_when: "'Created' in compose_up.stderr or 'Started' in compose_up.stderr or 'Recreated' in compose_up.stderr"
