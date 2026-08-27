@@ -1,9 +1,6 @@
 steamlens.ardabasarici.dev {
-	# Cloudflare Origin CA certificate (SSL mode: Full (strict)) — a static
-	# pair issued from the dashboard, trusted only by Cloudflare's edge,
-	# which is exactly its one job. No ACME: behind the proxy, HTTP-01
-	# can't reach the box, and DNS-01 would demand a custom Caddy build.
-	tls /etc/caddy/certs/ardabasarici.dev.pem /etc/caddy/certs/ardabasarici.dev.key
+	# The Origin CA pair, defined once in the box Caddyfile.
+	import origin_tls
 
 	# The audit's request-body finding: the app parses a POST body into
 	# memory before any gate runs, so the effective cap sits here, in front
