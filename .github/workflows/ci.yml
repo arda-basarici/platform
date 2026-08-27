@@ -1,0 +1,51 @@
+# Credential-free checks only. Nothing here can reach a backend, a provider
+# API, or a host: a `plan` needs a read identity over state and providers and
+# its output leaks values into a public pull request, so plan and apply stay
+# laptop-side (DESIGN, "Reversals on record") until that identity is designed.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # gitleaks scans the whole history, not the diff
+
+      # Secrets: the pre-commit hook only runs where hooksPath was set, so CI is
+      # the gate that cannot be skipped. A secret pushed past a hook is still in
+      # the commits behind it, hence the full history.
+      - name: Gitleaks (full history)
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITLEAKS_ENABLE_SUMMARY: "false"
+
+      # The Terraform line the laptop applies with; the lock files pin providers.
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: "~1.15"
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff terraform
+
+      # One init + validate per stack, without a backend: the syntax and the
+      # provider schemas are checked, the state is never touched. `-lockfile=
+      # readonly` fails if a stack's lock file no longer matches its constraints,
+      # so a provider bump is always a deliberate commit.
+      - name: terraform validate (every stack)
+        run: |
+          set -euo pipefail
+          for stack in terraform/stacks/*/; do
+            echo "::group::$stack"
+            terraform -chdir="$stack" init -backend=false -lockfile=readonly -input=false
+            terraform -chdir="$stack" validate
+            echo "::endgroup::"
+          done

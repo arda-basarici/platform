@@ -16,8 +16,8 @@ repository's `infra/` on 2026-08-27, zero-diff plan against the same state).
 | the `web` network | platform | the bench stack joins it as external |
 | no request-body cap, no proxy security headers | platform, by ruling in the stanzas: Frappe's nginx enforces its own 50m upload limit and already sends HSTS + nosniff | the application keeps sending them |
 | `X-Forwarded-For` = the one verified visitor IP | platform | Frappe's own client-IP handling |
-| deploy role `arn:aws:iam::445743457479:role/leave-agent-deploy` (trusts the agent repository's `main` via GitHub OIDC) | platform stack: `deploy.tf` | the deploy workflow's `role-to-assume` |
-| instance tag `Name=leave-agent-app` | platform stack: `instance.tf` | the deploy workflow finds the host by tag, so a replaced instance deploys without a workflow edit |
+| deploy role `arn:aws:iam::445743457479:role/leave-agent-deploy` (GitHub OIDC trust pinned to the agent repository's `production` environment by numeric repository id; the branch restriction is the environment's own policy on GitHub's side) | platform stack: `deploy.tf` | the deploy workflow's `role-to-assume` |
+| instance tag `Name=leave-agent-app` | platform stack: `instance.tf` | the deploy workflow finds the host by tag, so a replaced instance deploys without a workflow edit; the deploy role's `ssm:SendCommand` is also scoped to this tag |
 | SSM prefix `/leave-agent/` (`origin-cert`, `origin-key`, `postgres-password`; names owned here, values put out-of-band) | platform stack: `secrets.tf` | the instance role's read policy; cloud-init and the deploy script read by name |
 | `leave-agent.ardabasarici.dev` → the stack's Elastic IP (proxied A record) | platform: the stack's `app_hostname` variable + the Cloudflare record | cloud-init's Caddyfile on the host |
 | Bedrock inference-profile shortlist | platform stack: `bedrock_models` variable | the instance role's invoke policy; the agent picks from within it |
