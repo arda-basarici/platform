@@ -155,7 +155,8 @@ edit the seam exists to remove.
 
 **On the box, the repository is the deployed configuration.** The box checks this
 repository out at `/srv/platform` and the proxy runs from it; a box-layer deploy is
-a fast-forward-only pull plus `compose up -d`. The alternative, copying files onto
+a fast-forward-only pull plus `caddy reload` (`compose up -d` only when the proxy's
+Compose file itself changed). The alternative, copying files onto
 the box one `scp` at a time (how steam-lens did it), leaves the box's real state
 unknowable from git; a checkout makes "what is deployed" a commit hash. Two rules
 make it hold: the checkout is never edited on the box, and cloning creates no

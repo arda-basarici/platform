@@ -31,8 +31,10 @@ kept current each time it runs.
    (hostname, upstream, what the stanza enforces, what is backed up). The
    application's README states the same values from its side.
 4. **Deploy the proxy:** on the box, `cd /srv/platform && git pull --ff-only
-   && cd box && docker compose up -d`. A new stanza is a Caddyfile change, so
-   Caddy reloads in place; the running sites are not interrupted. Then verify
+   && cd box && docker compose exec caddy caddy reload --config
+   /etc/caddy/box/Caddyfile`. A new stanza is a config change, and the reload
+   is the deploy (`up -d` sees no Compose change and does nothing); Caddy
+   validates first and swaps in place, the running sites are not interrupted. Then verify
    **every** hostname on the box, not only the new one:
    `curl -s -o /dev/null -w '%{http_code}\n' https://<host>/` for each.
 5. **Backups, if the platform owns them:** `projects/<name>/backup.sh` plus

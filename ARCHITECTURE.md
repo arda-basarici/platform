@@ -126,7 +126,7 @@ flowchart TD
     laptop — plan against remote state, read, apply`"]
     MERGE --> BOX["`box layer or a tenant stanza:
     git pull --ff-only in /srv/platform,
-    compose up -d of the proxy —
+    caddy reload in the proxy container —
     Caddy validates the new config before
     replacing the old one`"]
     TF --> R1["blast radius: that stack"]
@@ -183,8 +183,11 @@ the remaining place old copies live; expiring noncurrent versions is on the back
 
 This repository is checked out on the box at `/srv/platform` and is deployment
 material only: no edits there, and a deploy is `git pull --ff-only` followed by
-`docker compose up -d` of the proxy, so a checkout that diverged fails the deploy
-instead of merging box-local state. `git rev-parse HEAD` in it answers which
+`caddy reload` in the proxy container (`compose up -d` only when the proxy's own
+Compose file changed), so a checkout that diverged fails the deploy instead of
+merging box-local state. The proxy mounts the `box/` directory, not the Caddyfile
+alone: a single-file bind mount pins the inode and git replaces files by rename,
+so the container would keep the pre-pull config (observed 2026-08-27). `git rev-parse HEAD` in it answers which
 platform configuration is deployed (not which application images run; those are
 the applications' deploys). Machine-local material lives outside the checkout
 under `/etc/platform/`: `box/certs/` (the Origin CA pair), `<tenant>/` (files
@@ -201,7 +204,7 @@ Compose file (`networks: web: external: true`). The proxy mounts the checkout's
 `import` accepts a single wildcard in its pattern (`*/*.caddy` is rejected at
 adapt time; observed with `caddy validate` on 2.11.4 before the cutover, which is
 what turned the first draft's per-hostname files into one file per tenant). A new
-tenant's stanzas are live on the next `compose up -d` of the proxy without touching `box/` or
+tenant's stanzas are live on the next `caddy reload` of the proxy without touching `box/` or
 the proxy's Compose file. The values crossing the seam, and who produces each, are
 DESIGN's contract table. The backup units follow the same pattern: the timer and
 service under `projects/<name>/` are installed into `/etc/systemd/system/` by the
