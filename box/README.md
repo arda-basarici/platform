@@ -185,11 +185,17 @@ Caddy ever sees them.
 # Once per box:
 cd /srv/platform/box && docker compose up -d
 
-# Every change to box/ or to any projects/<name>/*.caddy afterwards — the
-# whole deploy. Caddy validates the new configuration before replacing the
-# running one, so a broken file fails closed with the old config still
-# serving; a changed Caddyfile or stanza reloads in place, a changed
-# compose.yaml recreates the container (a few seconds of downtime, all sites).
+# Every config change (box/Caddyfile or any projects/<name>/sites.caddy)
+# afterwards — the whole deploy. `up -d` alone deploys nothing here: a config
+# edit changes no compose definition, so Compose sees nothing to do — the
+# reload is the deploy. Caddy validates the new configuration before swapping
+# it in, so a broken file fails closed with the old config still serving;
+# a good one swaps with zero downtime.
+cd /srv/platform && git pull --ff-only && cd box \
+  && docker compose exec caddy caddy reload --config /etc/caddy/box/Caddyfile
+
+# Only a changed compose.yaml needs the container recreated instead
+# (a few seconds of downtime, all sites):
 cd /srv/platform && git pull --ff-only && cd box && docker compose up -d
 
 # Then, always: every hostname answers through the visitor path.
@@ -199,8 +205,9 @@ curl -s -o /dev/null -w '%{http_code}\n' https://hr-w1.ardabasarici.dev/
 ```
 
 Rollback is the previous commit: `git -C /srv/platform checkout <sha> -- box
-projects` and `compose up -d` again (the checkout is then dirty on purpose;
-restore it with `git checkout .` once the fix is pushed).
+projects` and the same reload (or `up -d`, if compose.yaml was what rolled
+back). The checkout is then dirty on purpose; restore it with `git checkout .`
+once the fix is pushed.
 
 Applications bring themselves up from their own directories, with images from
 GHCR; the box never builds. The `box` alias lives in the workstation's

@@ -20,8 +20,17 @@ services:
     # ranges — the DOCKER-USER firewall (firewall.sh here) guards it.
     ports:
       - "443:443"
+    # The image's default command points at /etc/caddy/Caddyfile; ours lives
+    # inside the box/ directory mount below, so the path is set explicitly.
+    command: caddy run --config /etc/caddy/box/Caddyfile --adapter caddyfile
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The whole box/ directory, not the single Caddyfile: a single-file
+      # bind mount pins the file's inode, and git pull replaces files by
+      # rename — the container would keep reading the pre-pull config
+      # forever (observed 2026-08-27). A directory mount resolves names on
+      # every access, so a pull is visible immediately and `caddy reload`
+      # is the whole deploy.
+      - .:/etc/caddy/box:ro
       # Every tenant's stanzas, imported by the Caddyfile's glob. Read-only:
       # the checkout is deployment material, nothing on the box writes it.
       - ../projects:/etc/caddy/projects:ro
