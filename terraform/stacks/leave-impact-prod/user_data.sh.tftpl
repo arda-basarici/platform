@@ -1,0 +1,119 @@
+#!/bin/bash
+# First-boot configuration (cloud-init user data) for the application host.
+# Runs once per instance; idempotent where a rerun could happen (mount, files).
+# Log: /var/log/leave-agent-boot.log — read it over an SSM session when the
+# site does not answer. This is cloud-init "until the app exists" (DESIGN); it
+# lays the host down — Docker, the data volume, the proxy stack, the shared
+# `web` network. The application stack is the deploy job's (deploy/instance/
+# deploy.sh), never this script's: a replaced instance serves the hello until
+# the next approved deploy lands the app on it.
+set -euo pipefail
+exec > >(tee -a /var/log/leave-agent-boot.log) 2>&1
+echo "=== leave-agent first boot $(date -u +%FT%TZ) ==="
+
+REGION=eu-central-1
+DATA_DEV=/dev/sdf          # attachment name; AL2023 udev symlinks it to the nvme device
+DATA_MNT=/srv
+
+# --- Docker + a pinned Compose plugin --------------------------------------
+# AL2023 packages Docker but not the Compose plugin; the plugin is a single
+# static binary from the docker/compose release, pinned by version and sha256
+# (v5.5.0 linux-aarch64, fetched 2026-08-26).
+dnf install -y docker
+systemctl enable --now docker
+COMPOSE_VERSION=v5.5.0
+COMPOSE_SHA256=ff42489f5a9b879d5d117c5ffea6defc27390b3286da8ad52cbc9c6ab5df590e
+install -d /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/$COMPOSE_VERSION/docker-compose-linux-aarch64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+echo "$COMPOSE_SHA256  /usr/local/lib/docker/cli-plugins/docker-compose" | sha256sum -c -
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+docker compose version
+
+# --- Data volume: format once, mount by UUID -------------------------------
+# The EBS attachment lands seconds after the instance starts; wait for it.
+for _ in $(seq 60); do [ -e "$DATA_DEV" ] && break; sleep 2; done
+[ -e "$DATA_DEV" ] || { echo "data volume never appeared at $DATA_DEV"; exit 1; }
+if ! blkid "$DATA_DEV" >/dev/null 2>&1; then
+  mkfs.ext4 -L leave-agent-data "$DATA_DEV"
+fi
+DATA_UUID=$(blkid -s UUID -o value "$DATA_DEV")
+mkdir -p "$DATA_MNT"
+grep -q "UUID=$DATA_UUID" /etc/fstab || echo "UUID=$DATA_UUID $DATA_MNT ext4 defaults,nofail 0 2" >> /etc/fstab
+mountpoint -q "$DATA_MNT" || mount "$DATA_MNT"
+
+# --- Origin certificate from Parameter Store --------------------------------
+# The parameters exist from the same apply as this instance but carry a
+# placeholder until put out-of-band; poll until both look like PEM so a boot
+# that races the put heals itself instead of running Caddy on a broken pair.
+install -d -m 0700 "$DATA_MNT/proxy/certs"
+fetch_pem() { aws ssm get-parameter --region "$REGION" --with-decryption --name "$1" --query Parameter.Value --output text; }
+for _ in $(seq 90); do
+  CERT=$(fetch_pem /leave-agent/origin-cert); KEY=$(fetch_pem /leave-agent/origin-key)
+  case "$CERT$KEY" in *"-----BEGIN"*"-----BEGIN"*) break ;; esac
+  echo "origin cert/key not yet put; waiting"; sleep 20
+done
+case "$CERT$KEY" in *"-----BEGIN"*"-----BEGIN"*) ;; *) echo "origin pair never arrived"; exit 1 ;; esac
+umask 077
+printf '%s\n' "$CERT" > "$DATA_MNT/proxy/certs/origin.pem"
+printf '%s\n' "$KEY"  > "$DATA_MNT/proxy/certs/origin.key"
+unset CERT KEY
+umask 022
+
+# --- The shared `web` network and the proxy stack -----------------------------
+# The proxy owns `web` (compose.yaml in the repo declares it external); every
+# application stack joins it and publishes nothing to the host. Caddy is the
+# same proxy the box runs, so the two hosts read alike. `trusted_proxies` is
+# rendered from the same Terraform variable as the security group's ingress
+# rules — one pinned list, not another copy. The `hello` service answers the
+# hostname until the application has an HTTP surface; the Caddyfile's
+# reverse_proxy target flips then.
+docker network inspect web >/dev/null 2>&1 || docker network create web
+install -d "$DATA_MNT/proxy" "$DATA_MNT/app" "$DATA_MNT/pgdata"
+cat > "$DATA_MNT/proxy/Caddyfile" <<'EOF'
+{
+	# Cloudflare is the only client and it holds the trust for the origin pair;
+	# no ACME, no port 80.
+	auto_https off
+	servers {
+		# Believe X-Forwarded-* only from Cloudflare's edge (the pinned ranges).
+		trusted_proxies static ${join(" ", cloudflare_ipv4_ranges)}
+	}
+}
+
+${app_hostname} {
+	tls /certs/origin.pem /certs/origin.key
+	reverse_proxy hello:80
+}
+EOF
+
+cat > "$DATA_MNT/proxy/compose.yaml" <<'EOF'
+name: proxy
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+      - caddy-data:/data
+    networks: [web]
+  hello:
+    # Stock multi-arch echo service; shows the request as the app will see it
+    # (cf-ray, the verified visitor IP in X-Forwarded-For).
+    image: traefik/whoami:v1.11
+    restart: unless-stopped
+    environment:
+      WHOAMI_NAME: leave-agent hello (M0 instance probe)
+    networks: [web]
+volumes:
+  caddy-data:
+networks:
+  web:
+    external: true
+EOF
+
+cd "$DATA_MNT/proxy" && docker compose up -d
+docker compose ps
+echo "=== first boot done $(date -u +%FT%TZ) ==="

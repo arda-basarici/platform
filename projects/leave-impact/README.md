@@ -2,9 +2,9 @@
 
 The platform's side of the leave-impact agent. On the box: the site stanzas
 for Frappe HR (the agent's dependency, run from that repository's
-`deploy/frappe/`). On AWS: the agent's own host and deploy path, in
-`terraform/stacks/leave-impact-prod/` once the stack moves here (pre-M1
-step 3); the AWS rows of the contract fill in then.
+`deploy/frappe/`). On AWS: the agent's own host and deploy path, the
+`terraform/stacks/leave-impact-prod/` stack (moved here from the agent
+repository's `infra/` on 2026-08-27, zero-diff plan against the same state).
 
 ## Contract
 
@@ -16,13 +16,21 @@ step 3); the AWS rows of the contract fill in then.
 | the `web` network | platform | the bench stack joins it as external |
 | no request-body cap, no proxy security headers | platform, by ruling in the stanzas: Frappe's nginx enforces its own 50m upload limit and already sends HSTS + nosniff | the application keeps sending them |
 | `X-Forwarded-For` = the one verified visitor IP | platform | Frappe's own client-IP handling |
-| deploy role ARN · instance `Name` tag · SSM prefix `/leave-agent/` | platform stack | the agent's deploy workflow (step 3) |
+| deploy role `arn:aws:iam::445743457479:role/leave-agent-deploy` (trusts the agent repository's `main` via GitHub OIDC) | platform stack: `deploy.tf` | the deploy workflow's `role-to-assume` |
+| instance tag `Name=leave-agent-app` | platform stack: `instance.tf` | the deploy workflow finds the host by tag, so a replaced instance deploys without a workflow edit |
+| SSM prefix `/leave-agent/` (`origin-cert`, `origin-key`, `postgres-password`; names owned here, values put out-of-band) | platform stack: `secrets.tf` | the instance role's read policy; cloud-init and the deploy script read by name |
+| `leave-agent.ardabasarici.dev` → the stack's Elastic IP (proxied A record) | platform: the stack's `app_hostname` variable + the Cloudflare record | cloud-init's Caddyfile on the host |
+| Bedrock inference-profile shortlist | platform stack: `bedrock_models` variable | the instance role's invoke policy; the agent picks from within it |
 
 ## Files
 
 | File | Role |
 |---|---|
 | `sites.caddy` | both stanzas: the production HR site, then world site 1 |
+| `../../terraform/stacks/leave-impact-prod/` | the AWS host: network, security group, instance role, instance + EIP + data volume, OIDC deploy role, parameter names, budget, cloud-init template |
+
+Stack commands run from the repository root with the Identity Center profile:
+`AWS_PROFILE=leave-impact terraform -chdir=terraform/stacks/leave-impact-prod plan`.
 
 Pending on the box, per the backlog: the MariaDB dump unit and its restore
 drill; Frappe's `.env` onto a SOPS file under this directory with its own
