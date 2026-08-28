@@ -15,6 +15,7 @@ application/platform boundary.
 
 - `box/` — the shared layer on the VPS (proxy, firewall, runbook).
 - `projects/<name>/` — one directory per tenant: site stanzas, backup units, contract.
+- `terraform/stacks/<stack>/` — the cloud resources, one state per stack: the AWS app host (`leave-impact-prod`), the Cloudflare records and settings (`edge`).
 - `runbooks/` — repeatable procedures, written as each is first exercised.
 
 Status: design settled 2026-08-26; the box layer extracted from steam-lens on

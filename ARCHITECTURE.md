@@ -144,7 +144,7 @@ flowchart TD
 | `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `backup.enc.env` (`BACKUP_PING_URL`) · README (contract values) | fast | steam-lens → here (step 2) |
 | `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · MariaDB dump units · README (contract values incl. the deploy role ARN) | fast | stanzas from steam-lens's Caddyfile (step 2); README's AWS rows (step 3) |
 | `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads, Bedrock invoke) · the instance, its EIP, the data volume · the GitHub OIDC provider + deploy role · SSM parameter *names* · the monthly budget · `user_data.sh.tftpl` | per-stack | leave-impact-agent `infra/` → here, unchanged (step 3, 2026-08-27: zero-diff plan) |
-| `terraform/stacks/edge/` | the Cloudflare zone and records | per-stack | not yet (backlog: import) |
+| `terraform/stacks/edge/` | every DNS record of the zone (the four proxied A records, the portfolio site's CNAMEs and verification TXTs) and the three deliberately set zone settings (`ssl`, `always_use_https`, `ipv6`); the zone itself is a data lookup | per-stack | imported from the hand-made edge 2026-08-28: 11 resources, zero-diff plan |
 | `ansible/` | the box from bare metal | slow | not yet (step 4) |
 | `runbooks/` | box-rebuild · add-a-tenant · deploy-edge-change · restore | — | new |
 
@@ -161,7 +161,7 @@ DynamoDB.
 | Stack | Backend key | A bad apply breaks |
 |---|---|---|
 | `leave-impact-prod` | `leave-impact-agent/terraform.tfstate` (unchanged by the move) | the app host and its deploy path |
-| `edge` | to be chosen at import | every hostname |
+| `edge` | `edge/terraform.tfstate` | every hostname |
 
 **Secret values and state.** The `aws_ssm_parameter` resources carry a placeholder
 through the provider's write-only argument (`value_wo` + `value_wo_version`); the

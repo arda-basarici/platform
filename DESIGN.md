@@ -167,9 +167,17 @@ Ansible will later manage (ruled 2026-08-27, at the extraction; both halves chea
 to revisit until the playbook encodes them).
 
 **Terraform state boundaries follow lifecycle and blast radius, not conceptual
-similarity.** `edge` holds only Cloudflare: zone, records, edge settings. The AWS-side
-GitHub OIDC *provider* and the deploy role's trust policy stay in `leave-impact-prod`
-while that stack is the only consumer.
+similarity.** `edge` holds only Cloudflare: the records and the deliberately set
+settings *inside* the zone. The zone itself stays hand-owned and is looked up by name,
+never imported: managing it would put the zone's own lifecycle within a `destroy`'s
+reach for no gain, and a setting appears in code only when it was deliberately set (a
+plan default is not a decision; coding it makes every future plan noisier). The
+AWS-side GitHub OIDC *provider* and the deploy role's trust policy stay in
+`leave-impact-prod` while that stack is the only consumer. The S3 state bucket both
+stacks use is the shared Terraform backend, bootstrapped outside the stacks whose
+state it stores; a backend is Terraform's own bootstrap, not a shared workload
+resource, so it does not count toward the `aws-foundation` trigger below. (Ruled
+2026-08-28 at the import, after an external review; lasting.)
 
 **Deliberately absent, and what would bring each in:**
 
@@ -264,8 +272,7 @@ cleanup into a mini-project.
   public repository. Gate before the timebox starts: `ansible -m ping` against the
   test host, proving install, key, inventory and reachability together.
 
-**Backlog** (the repository's TODO, not this document): the Cloudflare import into
-`edge` · an authenticated CI `plan` (identity + redaction first), then apply-from-CI
+**Backlog** (the repository's TODO, not this document): an authenticated CI `plan` (identity + redaction first), then apply-from-CI
 behind an approval gate · SNS subscription for the AWS anomaly alert, state-bucket
 adoption + `.tflock` lifecycle rule (carried over from the leave-impact TODO) ·
 Dependabot for the pinned providers and actions · Frappe's box `.env` onto SOPS with its

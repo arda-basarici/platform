@@ -172,6 +172,12 @@ ssh box 'sudo install -d -m 0750 /etc/platform/box/certs \
   && rm /tmp/ardabasarici.dev.pem /tmp/ardabasarici.dev.key'
 ```
 
+Since 2026-08-28 the records and the zone settings are Terraform's:
+`terraform/stacks/edge` describes them exactly (imported from the hand-made
+setup on a zero-diff plan), and a change to a record or a setting is a change
+there, applied from the laptop; the dashboard is read-only for them. The Origin
+CA pair is not: it stays a dashboard-issued, box-side file, exactly as above.
+
 Two Caddyfile pieces make the proxy honest (both explained in place there):
 `trusted_proxies` lists Cloudflare's published ranges (cloudflare.com/ips;
 refresh the list if Cloudflare ever announces a change) so a forwarded
