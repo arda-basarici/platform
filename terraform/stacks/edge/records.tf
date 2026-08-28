@@ -5,7 +5,8 @@
 # is Cloudflare's "auto", the only value a proxied record accepts.
 #
 # The portfolio site (GitHub Pages) rides the apex and www CNAMEs DNS-only: GitHub
-# terminates its own TLS and needs to see the visitor's request directly. The two TXT
+# terminates its own TLS and needs to see the visitor's request directly (the
+# dashboard's "unproxied CNAME" insight is this, archived as accepted risk). The two TXT
 # records are its domain proof and the Google Search Console verification — public
 # DNS content, so they are literal here; the origin addresses are not.
 
