@@ -148,7 +148,9 @@ bots exempt, block for 10 s; a coarse ceiling on one client, tuned only from evi
 Bot Fight Mode on with JS detections, the AI-crawler controls at their defaults.
 DNSSEC signed (the DS record is the stack's `dnssec_ds` output).
 
-**Cloudflare-managed, on by default, unmanaged on purpose.** The DDoS L7 ruleset,
+**Cloudflare-managed, on by default, unmanaged on purpose.** The DDoS L7 ruleset
+(no override created; one would be a `ddos_l7` ruleset in code) and the network-layer
+and TLS DDoS protections beneath it,
 the Managed Free WAF ruleset, URL normalization, TLS 1.3, post-quantum key exchange,
 Encrypted Client Hello, HTTP/2 and HTTP/3, Brotli, Universal SSL (Google CA, apex +
 wildcard), `security_level = medium`, the browser integrity check. A plan default is
