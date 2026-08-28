@@ -90,3 +90,37 @@ resource "cloudflare_dns_record" "github_pages_challenge" {
   proxied = false
   ttl     = 1
 }
+
+# --- no mail: the domain declares it sends and receives nothing ---------------------
+# Without these, anyone can send "from" @ardabasarici.dev and most receivers will
+# accept it. Null MX (RFC 7505) refuses delivery, SPF -all authorises no sender, and
+# DMARC p=reject tells receivers to bin what fails; together they are the standard
+# statement of a mail-less domain (2026-08-28).
+
+resource "cloudflare_dns_record" "null_mx" {
+  zone_id  = local.zone_id
+  name     = var.zone_name
+  type     = "MX"
+  content  = "."
+  priority = 0
+  proxied  = false
+  ttl      = 3600
+}
+
+resource "cloudflare_dns_record" "spf" {
+  zone_id = local.zone_id
+  name    = var.zone_name
+  type    = "TXT"
+  content = "\"v=spf1 -all\""
+  proxied = false
+  ttl     = 3600
+}
+
+resource "cloudflare_dns_record" "dmarc" {
+  zone_id = local.zone_id
+  name    = "_dmarc.${var.zone_name}"
+  type    = "TXT"
+  content = "\"v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s\""
+  proxied = false
+  ttl     = 3600
+}
