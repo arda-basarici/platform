@@ -26,8 +26,9 @@ resource "cloudflare_ruleset" "firewall_custom" {
 # that needs a tighter budget limits itself (SteamLens's /search has its own per-IP
 # cap answering 429). Loose on purpose: an office NAT shares one ip.src across every
 # Frappe HR user, and one HR page load is dozens of requests. Counted per source IP
-# per colo (the free plan's fixed characteristics). Only the proxied hosts pass
-# through here; the apex and www go DNS-only to GitHub Pages.
+# per colo (the free plan's fixed characteristics). Verified bots (search crawlers)
+# are exempt: shedding them costs indexing and protects nothing. Only the proxied
+# hosts pass through here; the apex and www go DNS-only to GitHub Pages.
 resource "cloudflare_ruleset" "ratelimit" {
   zone_id = local.zone_id
   name    = "default"
@@ -36,7 +37,7 @@ resource "cloudflare_ruleset" "ratelimit" {
 
   rules = [{
     description = "client flood shed"
-    expression  = "(http.host contains \"${var.zone_name}\")"
+    expression  = "(http.host contains \"${var.zone_name}\") and not cf.bot_management.verified_bot"
     action      = "block"
     enabled     = true
 
