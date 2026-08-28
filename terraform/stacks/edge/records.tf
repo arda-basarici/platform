@@ -6,7 +6,7 @@
 #
 # The portfolio site (GitHub Pages) rides the apex and www CNAMEs DNS-only: GitHub
 # terminates its own TLS and needs to see the visitor's request directly. The two TXT
-# records are its domain proof and the Google Search Console verification Ã¢â‚¬â€ public
+# records are its domain proof and the Google Search Console verification — public
 # DNS content, so they are literal here; the origin addresses are not.
 
 locals {

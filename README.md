@@ -15,8 +15,9 @@ application/platform boundary.
 
 - `box/` — the shared layer on the VPS (proxy, firewall, runbook).
 - `projects/<name>/` — one directory per tenant: site stanzas, backup units, contract.
-- `terraform/stacks/<stack>/` — the cloud resources, one state per stack: the AWS app host (`leave-impact-prod`), the Cloudflare records and settings (`edge`).
+- `terraform/stacks/<stack>/` — the cloud resources, one state per stack: the AWS app host (`leave-impact-prod`), the Cloudflare records, settings, and security rules (`edge`).
 - `runbooks/` — repeatable procedures, written as each is first exercised.
 
-Status: design settled 2026-08-26; the box layer extracted from steam-lens on
-2026-08-27, not yet deployed from this repository (the cutover is the next step).
+Status: design settled 2026-08-26; the box serving from this repository since the
+2026-08-27 cutover, rebuildable by the Ansible play (blank-host run 2026-08-28); both
+Terraform stacks imported zero-diff, the Cloudflare edge fully in code.
