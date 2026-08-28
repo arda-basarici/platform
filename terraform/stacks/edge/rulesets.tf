@@ -20,9 +20,14 @@ resource "cloudflare_ruleset" "firewall_custom" {
   }]
 }
 
-# SteamLens's /search is the one endpoint that does real work per request; the edge
-# sheds a flood of it per client before the box sees it. Counted per source IP per
-# colo (the free plan's fixed characteristics).
+# The zone-wide ceiling on one client (the free plan allows a single rate-limiting
+# rule, so it is spent on the general case, not on one tenant's endpoint). The layers
+# above and below it: the DDoS L7 managed ruleset takes volumetric floods; an endpoint
+# that needs a tighter budget limits itself (SteamLens's /search has its own per-IP
+# cap answering 429). Loose on purpose: an office NAT shares one ip.src across every
+# Frappe HR user, and one HR page load is dozens of requests. Counted per source IP
+# per colo (the free plan's fixed characteristics). Only the proxied hosts pass
+# through here; the apex and www go DNS-only to GitHub Pages.
 resource "cloudflare_ruleset" "ratelimit" {
   zone_id = local.zone_id
   name    = "default"
@@ -30,15 +35,15 @@ resource "cloudflare_ruleset" "ratelimit" {
   phase   = "http_ratelimit"
 
   rules = [{
-    description = "search flood shed"
-    expression  = "(http.request.uri.path eq \"/search\")"
+    description = "client flood shed"
+    expression  = "(http.host contains \"${var.zone_name}\")"
     action      = "block"
     enabled     = true
 
     ratelimit = {
       characteristics     = ["ip.src", "cf.colo.id"]
       period              = 10
-      requests_per_period = 20
+      requests_per_period = 300
       mitigation_timeout  = 10
     }
   }]
