@@ -167,8 +167,8 @@ Ansible will later manage (ruled 2026-08-27, at the extraction; both halves chea
 to revisit until the playbook encodes them).
 
 **Terraform state boundaries follow lifecycle and blast radius, not conceptual
-similarity.** `edge` holds only Cloudflare: the records and the deliberately set
-settings *inside* the zone. The zone itself stays hand-owned and is looked up by name,
+similarity.** `edge` holds only Cloudflare: the records, the deliberately set
+settings, the security rulesets, bot control and DNSSEC *inside* the zone. The zone itself stays hand-owned and is looked up by name,
 never imported: managing it would put the zone's own lifecycle within a `destroy`'s
 reach for no gain, and a setting appears in code only when it was deliberately set (a
 plan default is not a decision; coding it makes every future plan noisier). The
@@ -177,7 +177,11 @@ AWS-side GitHub OIDC *provider* and the deploy role's trust policy stay in
 stacks use is the shared Terraform backend, bootstrapped outside the stacks whose
 state it stores; a backend is Terraform's own bootstrap, not a shared workload
 resource, so it does not count toward the `aws-foundation` trigger below. (Ruled
-2026-08-28 at the import, after an external review; lasting.)
+2026-08-28 at the import, after an external review; lasting.) What the zone tokens
+cannot reach (account-level notifications) or the provider has no resource for
+(`security.txt`) is set by hand and recorded in ARCHITECTURE with its values and the
+reason; a token is not widened for a toggle. (Ruled 2026-08-28 at the hardening;
+cheap to change if a provider surface appears.)
 
 **Deliberately absent, and what would bring each in:**
 
@@ -188,6 +192,11 @@ resource, so it does not count toward the `aws-foundation` trigger below. (Ruled
 | a steam-lens Terraform stack | steam-lens acquires cloud resources | its API-managed pieces (the Cloudflare zone) are `edge`, not a per-project stack |
 | `aws-foundation` (shared AWS: the OIDC provider, shared buckets) | a second AWS stack consumes the same resource | one consumer today |
 | a `github` stack (environments, repository secrets) | there is a reason to manage them from code | none yet |
+| a paid Cloudflare plan | an automated client of a proxied hostname needs an exception from Bot Fight Mode (Super Bot Fight Mode is the first tier with one) | every machine client has passed so far; "more features" is not a trigger |
+| edge-wide response headers (a `http_response_headers_transform` ruleset) | a header every tenant should carry that the origins do not set | `nosniff` rides on the HSTS setting; `X-Frame-Options` / `Permissions-Policy` over Frappe untested; the tenant stanzas set their own |
+| Authenticated Origin Pulls (mTLS edge → origin) | a second control on origin reachability is wanted | both origins already admit Cloudflare ranges only; defense in depth, not a hole |
+| Cloudflare Access in front of `hr-w1` | ruled as its own design step | it adds a service-to-service trust boundary (the leave agent's machine path needs a service token), not a browser login toggle |
+| more custom rules (4 of 5 free slots empty) | the 24-hour security analytics show traffic a rule would address | `cf.threat_score` is retired (always 0); a rule without evidence is a guess |
 
 ## Terraform: plan and apply stay on the laptop
 

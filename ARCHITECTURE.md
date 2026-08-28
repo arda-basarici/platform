@@ -133,6 +133,46 @@ flowchart TD
     BOX --> R2["blast radius: every site (box/) or one site (projects/)"]
 ```
 
+## The edge, as it stands
+
+Everything Cloudflare does for the zone, by who owns it. Read by API on 2026-08-28
+(the inventory token) and kept current by the `edge` stack's plan.
+
+**In code (`terraform/stacks/edge`).** The records above. Settings: `ssl = strict`,
+`always_use_https`, `ipv6`, `min_tls_version = 1.2`, HSTS (`max_age` 86400 to start,
+no subdomains, no preload; raised to six months once a canary period has passed) with
+`nosniff`. One custom rule, `exploit-path noise` (blocks `.php`, `/wp-`, `/.env`,
+`/.git` paths; 1 of the free plan's 5 slots). The one free rate-limiting rule, `client
+flood shed`: 300 requests / 10 s per source IP per colo on every proxied host, verified
+bots exempt, block for 10 s; a coarse ceiling on one client, tuned only from evidence.
+Bot Fight Mode on with JS detections, the AI-crawler controls at their defaults.
+DNSSEC signed (the DS record is the stack's `dnssec_ds` output).
+
+**Cloudflare-managed, on by default, unmanaged on purpose.** The DDoS L7 ruleset,
+the Managed Free WAF ruleset, URL normalization, TLS 1.3, post-quantum key exchange,
+Encrypted Client Hello, HTTP/2 and HTTP/3, Brotli, Universal SSL (Google CA, apex +
+wildcard), `security_level = medium`, the browser integrity check. A plan default is
+not a decision; none of these appear in code until one is changed from code.
+
+**Set by hand and recorded here, because no token or provider surface covers them.**
+Two account-level notifications, both e-mail: Certificate Transparency Monitoring (a
+certificate for the domain issued by any CA other than Cloudflare's own) and the
+Universal SSL alert (issuance, renewal, validation failures). Account scope sits
+outside both zone tokens, and two alert toggles do not justify a wider one. The
+zone's `security.txt` (RFC 9116: the contact mailbox, languages en/tr, expires
+2027-08-29 and must be renewed before then; served by Cloudflare at
+`/.well-known/security.txt` on the proxied hosts only; provider 5.24 has no resource
+for it). Two Security-page insights archived as accepted risk: the unproxied CNAMEs
+(GitHub Pages terminates its own TLS) and AI Labyrinth (nothing to protect from AI
+crawlers, and blocking them hides the portfolio from AI search).
+
+**The constraint Bot Fight Mode imposes.** On the free plan it runs across the whole
+zone, can challenge any automated client, and has no exception mechanism: a WAF skip
+rule does not bypass it. Every machine client of a proxied hostname is therefore
+tested, not assumed; the leave agent's Frappe REST probe has crossed it successfully,
+which is an observation, not a guarantee. Super Bot Fight Mode (Pro) is the first
+plan tier with exceptions, and that, not feature count, is the trigger for paying.
+
 ## Repository map
 
 | Path | Holds | Lifecycle | Lives in (as of this snapshot) |
@@ -144,7 +184,7 @@ flowchart TD
 | `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `backup.enc.env` (`BACKUP_PING_URL`) · README (contract values) | fast | steam-lens → here (step 2) |
 | `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · MariaDB dump units · README (contract values incl. the deploy role ARN) | fast | stanzas from steam-lens's Caddyfile (step 2); README's AWS rows (step 3) |
 | `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads, Bedrock invoke) · the instance, its EIP, the data volume · the GitHub OIDC provider + deploy role · SSM parameter *names* · the monthly budget · `user_data.sh.tftpl` | per-stack | leave-impact-agent `infra/` → here, unchanged (step 3, 2026-08-27: zero-diff plan) |
-| `terraform/stacks/edge/` | every DNS record of the zone (the four proxied A records, the portfolio site's CNAMEs and verification TXTs) and the three deliberately set zone settings (`ssl`, `always_use_https`, `ipv6`); the zone itself is a data lookup | per-stack | imported from the hand-made edge 2026-08-28: 11 resources, zero-diff plan |
+| `terraform/stacks/edge/` | every DNS record of the zone (the four proxied A records, the portfolio site's CNAMEs and verification TXTs, the no-mail MX/SPF/DMARC) · the deliberately set zone settings (`ssl`, `always_use_https`, `ipv6`, `min_tls_version`, HSTS + nosniff) · the two security rulesets (custom rule, rate limit) · Bot Fight Mode · DNSSEC; the zone itself is a data lookup | per-stack | imported from the hand-made edge 2026-08-28 (records, settings, rulesets, bot control; every import zero-diff), then hardened from code the same day |
 | `ansible/` | the box from bare metal | slow | not yet (step 4) |
 | `runbooks/` | box-rebuild · add-a-tenant · deploy-edge-change · restore | — | new |
 
@@ -221,3 +261,6 @@ that tenant's data.
   surface lands, happens in that stack.
 - PostgreSQL backup on the app host: none yet.
 - The MariaDB dump unit and its restore drill: pending on the box.
+- Security analytics on the free plan keep 24 hours; a decision that needs traffic
+  evidence (widening the exploit-path rule, moving the rate-limit threshold) reads
+  that window on the day, not a history.
