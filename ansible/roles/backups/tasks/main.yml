@@ -38,6 +38,27 @@
     - steamlens-backup.timer
   notify: Reload systemd
 
+# The unit in the checkout names the box's login user; the login user of any
+# other host is the inventory's, so the play sets it in a drop-in it owns —
+# the same shape the firewall role uses for the uplink name. Written on every
+# host, the box included: the effective value is then always the inventory's,
+# never "whatever the checkout says", and verify.sh reads it back.
+- name: Own the drop-in directory for the backup service
+  ansible.builtin.file:
+    path: /etc/systemd/system/steamlens-backup.service.d
+    state: directory
+    mode: "0755"
+
+- name: Run the backup service as the inventory's login user
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/steamlens-backup.service.d/user.conf
+    content: |
+      # Written by the platform play (roles/backups); the login user from the inventory.
+      [Service]
+      User={{ ansible_user }}
+    mode: "0644"
+  notify: Reload systemd
+
 - name: Reload systemd before enabling the timer
   ansible.builtin.meta: flush_handlers
 

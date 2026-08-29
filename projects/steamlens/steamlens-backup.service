@@ -8,6 +8,9 @@ After=network-online.target
 [Service]
 Type=oneshot
 # The login user: owns /srv/steamlens/data and the rclone remote config.
+# This is the live box's value, for the hand install (`sudo cp` from the
+# checkout); the play overrides it on every host it manages with a drop-in
+# (steamlens-backup.service.d/user.conf) carrying the inventory's login user.
 User=arda
 # BACKUP_PING_URL is platform-owned (the backup is a platform operation on a
 # tenant's data), so it lives in the platform's SOPS file for this tenant and
