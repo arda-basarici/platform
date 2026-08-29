@@ -1,7 +1,7 @@
 # Credential-free checks only. Nothing here can reach a backend, a provider
 # API, or a host: a `plan` needs a read identity over state and providers and
 # its output leaks values into a public pull request, so plan and apply stay
-# laptop-side (DESIGN, "Reversals on record") until that identity is designed.
+# laptop-side (DESIGN, "Decisions that changed, and why") until that identity is designed.
 name: ci
 
 on:

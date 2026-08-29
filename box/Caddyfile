@@ -1,5 +1,5 @@
 # The box proxy's global configuration — the part no tenant owns. Site stanzas
-# live one directory per project under projects/<name>/*.caddy and are pulled
+# live one file per project, projects/<name>/sites.caddy, and are pulled
 # in by the import at the bottom; this file changes only when a rule that
 # applies to every site changes.
 #
@@ -37,6 +37,6 @@
 # all of that tenant's sites: Caddy's import allows a single wildcard in the
 # pattern (observed on 2.11: `*/*.caddy` is rejected at adapt time), so the
 # file name is fixed and the directory is the wildcard. A new tenant is a new
-# directory plus `docker compose up -d` of this stack — nothing in this file
+# directory plus a `caddy reload` of this stack — nothing in this file
 # changes (runbooks/add-a-tenant.md).
 import /etc/caddy/projects/*/sites.caddy

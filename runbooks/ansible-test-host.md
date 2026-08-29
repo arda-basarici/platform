@@ -2,7 +2,7 @@
 
 A hand-launched throwaway EC2 instance the box playbook (`ansible/site.yml`) is
 proven against: a fresh Debian 12 is the blank host on every acceptance run
-(DESIGN, "Step 4 rulings"). Never in a stack's state, never left running: the
+(DESIGN, "The playbook's rulings"). Never in a stack's state, never left running: the
 cost is ~$0.02/h, the AWS cost alert is the backstop, the TODO in the platform
 stream carries the ids while one exists.
 

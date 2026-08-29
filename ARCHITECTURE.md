@@ -1,26 +1,31 @@
 # ARCHITECTURE — platform
 
 How the operational layer is built: the hosts, the paths a request / a deploy / a
-backup / an infrastructure change take through it, the repository map, the state
-map, and the seam between platform and application. The *why* behind each shape is
-DESIGN.md's; this document describes the system as it stands.
+backup / an infrastructure change take through it, the edge as it stands, the box
+from a blank host, the repository and state maps, and the seam between platform and
+application. The *why* behind each shape is [DESIGN.md](DESIGN.md)'s (cited by name);
+the pitch is [README.md](README.md)'s. This document describes the system as it runs.
 
-*Snapshot of a system being extracted · last updated 2026-08-26 · describes the
-running system and the target repository layout; the repository map's last column
-says which files have moved.*
+*Snapshot of the running system · last updated 2026-08-29 · the extraction from
+steam-lens complete (the box has served from this checkout since 2026-08-27), both
+Terraform stacks adopted zero-diff (2026-08-27 and 2026-08-28), the box playbook
+proven on a blank host (2026-08-28). The live box has not yet been replayed by the
+playbook; the restraint list at the end carries what is deliberately not done.*
 
 ---
 
 ## The physical picture
 
-Two hosts of the same shape, one per provider, each serving its own tenants behind
-its own proxy. Nothing runs on both.
+Two hosts sharing one origin-security and proxy contract, each implemented in its
+provider's idiom, each serving its own tenants behind its own proxy, both behind one
+Cloudflare zone. Nothing runs on both.
 
 ```mermaid
 %%{init: {"flowchart": {"diagramPadding": 150}}}%%
 flowchart TD
     V([visitor]) --> CF["`Cloudflare edge
-    proxied DNS · SSL Full (strict) · bot cover`"]
+    proxied DNS · SSL Full (strict) · TLS ≥ 1.2 · DNSSEC
+    rate limit · exploit-path rule · Bot Fight Mode`"]
     CF -->|"443, Cloudflare ranges only"| FW1["`the box (netcup, Debian)
     ufw: 22 only · DOCKER-USER chain
     admits Cloudflare ranges`"]
@@ -34,9 +39,11 @@ flowchart TD
     C1 -->|"docker network web"| SL["`steamlens-app-1
     steam-lens repo`"]
     C1 -->|"docker network web"| FR["`frappe-frontend-1
-    leave-impact repo, deploy/frappe`"]
+    leave-impact repo, deploy/frappe
+    hr. and hr-w1.`"]
     C2 -->|"docker network web"| LA["`leave-impact app + PostgreSQL
-    leave-impact repo, deploy/instance`"]
+    leave-impact repo, deploy/instance
+    (a hello page until the first deploy)`"]
     SL --> SLDB[("SQLite, bind-mounted")]
     FR --> FRDB[("MariaDB volume")]
     LA --> LADB[("PostgreSQL on the data volume")]
@@ -47,29 +54,32 @@ The rules that make them the same machine twice:
 
 | Rule | On the box | On the app host |
 |---|---|---|
-| The origin answers only Cloudflare, only on 443 | DOCKER-USER chain from `firewall.sh`, applied each boot | security group ingress from Cloudflare's ranges |
-| TLS at the origin is a Cloudflare Origin CA pair, never ACME | one pair for `*.ardabasarici.dev`, scp'd | one pair per host, read from SSM at boot |
-| Caddy trusts `CF-Connecting-IP` only from a Cloudflare peer | global block `trusted_proxies` | same block |
-| Applications join `web` as an external network and publish no port | `docker network create web` in the runbook | created by cloud-init |
-| The proxy reaches an application by its Compose container name | `steamlens-app-1:8000`, `frappe-frontend-1:8080` | the app's service name |
-| Administrative access | key-only ssh, root login off | no ssh; SSM Session Manager |
+| The origin answers only Cloudflare, only on 443 | DOCKER-USER chain from `firewall.sh`, applied each boot by a systemd unit ordered before Docker | security group ingress from Cloudflare's IPv4 ranges, nothing else inbound |
+| TLS at the origin is a Cloudflare Origin CA pair, never ACME | one pair for `*.ardabasarici.dev`, copied from the workstation | one pair issued for this host alone, read from SSM at first boot |
+| Caddy trusts `CF-Connecting-IP` only from a Cloudflare peer | global `trusted_proxies` block | same block, rendered by cloud-init |
+| Applications join `web` as an external network and publish no port | created by the `docker` role | created by cloud-init |
+| The proxy reaches an application by its Compose container name | `steamlens-app-1:8000`, `frappe-frontend-1:8080` | the app's service name (`hello:80` until the first deploy) |
+| Administrative access | key-only ssh, root login off | no ssh at all; SSM Session Manager |
 
-What differs is how each host came to exist: the box was provisioned by hand from the
-runbook now in `box/README.md` (Ansible transcribes it, pre-M1 step 4); the app host is
-`terraform apply` plus a first-boot script (`user_data.sh.tftpl`) that installs Docker
-and a pinned Compose plugin, mounts the data volume, and starts the proxy. A replaced
-instance serves a hello page until the next approved deploy lands the application.
+What differs is how each host came to exist. The box was provisioned by hand from
+the runbook in `box/README.md`, and that runbook is now transcribed into the Ansible
+play under `ansible/` (the section "The box from a blank host", below). The app host is
+`terraform apply` plus a first-boot script (`user_data.sh.tftpl`) that installs
+Docker and a checksum-pinned Compose plugin, formats and mounts the data volume on
+first boot only, waits for the origin pair to appear in Parameter Store, writes the
+proxy's Caddyfile and starts it. A replaced instance serves a hello page until the
+next approved deploy lands the application.
 
 ## The four paths
 
-**A request.** Visitor → Cloudflare edge (HTTP redirected to HTTPS there, bot
-detection, caching) → origin over 443 with the edge as TCP peer → host firewall admits
-it because the source is a Cloudflare range → Caddy terminates TLS with the origin
-pair, matches the `Host` to a site stanza, sets the security headers and the
-request-body cap the stanza declares, rewrites `X-Forwarded-For` to the single
-verified visitor IP → `reverse_proxy` to the container name over `web` → the
-application. A tenant's stanza is the only per-tenant part of that path; everything
-before it is shared.
+**A request.** Visitor → Cloudflare edge (HTTP redirected to HTTPS there, the
+rulesets and bot detection applied, caching where eligible) → origin over 443 with the edge as the
+TCP peer → the host firewall admits it because the source is a Cloudflare range →
+Caddy terminates TLS with the origin pair, matches the `Host` to a site stanza, sets
+the security headers and the request-body cap the stanza declares, rewrites
+`X-Forwarded-For` to the single verified visitor IP → `reverse_proxy` to the
+container name over `web` → the application. A tenant's stanza is the only
+per-tenant part of that path; everything before it is shared.
 
 **An application deploy.** Two shapes, both gated by a GitHub `production`
 environment with a required reviewer, both shipping an image tagged by the exact
@@ -91,79 +101,101 @@ flowchart TD
     SSH --> DS1["`deploy.sh on the box (steam-lens repo)
     pulls the sha, recreates the app,
     refuses while an analysis is live`"]
-    OIDC --> SSM["`finds the instance by tag,
+    OIDC --> SSM["`finds the instance by its Name tag,
     ssm send-command with the script as payload`"]
     SSM --> DS2["`deploy/instance/deploy.sh (leave-impact repo)
     fetches that commit's compose.yaml,
     secrets from Parameter Store → env, compose up`"]
 ```
 
-In both, the platform's part ends at the door: the ssh forced command on the box, the
-OIDC provider + role + SSM permission on AWS. What runs behind the door is the
+In both, the platform's part ends at the door: the ssh forced command on the box;
+on AWS the OIDC provider, the deploy role whose trust policy names one repository's
+`production` environment by numeric id, and an `ssm:SendCommand` permission scoped
+to instances tagged `leave-agent-app`. What runs behind the door is the
 application's.
 
 **A backup.** A systemd timer on the host runs a per-tenant script from
 `projects/<name>/`. steam-lens's takes a WAL-safe `sqlite3 .backup`, integrity-checks
 it before shipping (an unverified upload of a corrupt file preserves the corruption),
 gzips, uploads to Drive with the host's rclone, prunes to 7 daily + 4 weekly, and
-pings a healthchecks.io dead-man's switch. Backups exclude deployment secret material
-by construction (`.env`, certificates, Caddy state: each regenerable from the
-repositories or the dashboard); the database backups themselves are sensitive data
-(an HR system's records, once Frappe's dump joins) and are treated as such when
-encryption, retention, and restore access are decided. Frappe's MariaDB dump joins
-the same framework (pending); the app host's PostgreSQL has no backup yet.
+pings a healthchecks.io dead-man's switch, so the alert channel is silence. Backups
+exclude deployment secret material by construction (`.env`, certificates, Caddy
+state: each regenerable from the repositories or the dashboard); the database
+backups themselves are sensitive data and are treated as such. This is the only
+backup that exists: Frappe's MariaDB and the app host's PostgreSQL have none (the
+restraint list, below, carries the trigger).
 
 **An infrastructure change.**
 
 ```mermaid
 %%{init: {"flowchart": {"diagramPadding": 150}}}%%
 flowchart TD
-    EDIT([edit in this repository]) --> PR["`pull request
-    CI: terraform fmt -check · validate · static scan
-    no credentials, no plan`"]
+    EDIT([edit in this repository]) --> PR["`pull request / push
+    CI, credential-free: gitleaks over the full history ·
+    terraform fmt · per-stack init -backend=false + validate
+    with the lock file read-only`"]
     PR --> MERGE([merge])
-    MERGE --> TF["`Terraform stack:
+    MERGE --> TF["`a Terraform stack:
     laptop — plan against remote state, read, apply`"]
-    MERGE --> BOX["`box layer or a tenant stanza:
+    MERGE --> BOX["`the box layer or a tenant stanza:
     git pull --ff-only in /srv/platform,
     caddy reload in the proxy container —
     Caddy validates the new config before
     replacing the old one`"]
+    MERGE --> ANS["`a role:
+    proven on a throwaway host first
+    (runbooks/ansible-test-host.md)`"]
     TF --> R1["blast radius: that stack"]
     BOX --> R2["blast radius: every site (box/) or one site (projects/)"]
+    ANS --> R3["blast radius: none until the play targets the box"]
 ```
+
+CI can reach no backend, provider, or host by design (DESIGN, "Terraform: plan and
+apply stay on the laptop"). The read-only lock file makes a provider bump a
+deliberate commit: a lock that no longer matches its constraints fails the init.
+The Terraform line is `~1.15`; the providers are pinned by the lock files (aws
+6.61.0, cloudflare 5.24.0), with hashes for both the Windows laptop and the Linux
+runner.
 
 ## The edge, as it stands
 
 Everything Cloudflare does for the zone, by who owns it. Read by API on 2026-08-28
-(the inventory token) and kept current by the `edge` stack's plan.
+with a read-only inventory token and kept current by the `edge` stack's plan.
 
-**In code (`terraform/stacks/edge`).** The records above. Settings: `ssl = strict`,
-`always_use_https`, `ipv6`, `min_tls_version = 1.2`, HSTS (`max_age` 86400 to start,
-no subdomains, no preload; raised to six months once a canary period has passed) with
-`nosniff`. One custom rule, `exploit-path noise` (blocks `.php`, `/wp-`, `/.env`,
-`/.git` paths; 1 of the free plan's 5 slots). The one free rate-limiting rule, `client
-flood shed`: 300 requests / 10 s per source IP per colo on every proxied host, verified
-bots exempt, block for 10 s; a coarse ceiling on one client, tuned only from evidence.
-Bot Fight Mode on with JS detections, the AI-crawler controls at their defaults.
-DNSSEC signed (the DS record is the stack's `dnssec_ds` output).
+**In code (`terraform/stacks/edge`).** Every record of the zone, eleven: the four
+proxied A records (`steamlens.`, `hr.`, `hr-w1.` to the box; `leave-agent.` to the
+app host's elastic IP), the portfolio site's apex and `www` CNAMEs (DNS-only; GitHub
+Pages terminates their TLS) and its two verification TXTs, and the three no-mail
+records (a null MX, SPF `-all`, DMARC reject). Settings: `ssl = strict`,
+`always_use_https`, `ipv6`, `min_tls_version = 1.2`, HSTS (`max_age` 86400 to
+start, no subdomains, no preload; raised to six months once a canary week has
+passed) with `nosniff`. One custom rule, `exploit-path noise` (blocks `.php`,
+`/wp-`, `/.env`, `/.git` paths; 1 of the free plan's 5 slots). The one free
+rate-limiting rule, `client flood shed`: 300 requests / 10 s per source IP per colo
+on every proxied host, verified bots exempt, block for 10 s; a coarse ceiling on one
+client, tuned only from evidence. Endpoint-aware limits stay with the applications
+(steam-lens's `/search` relies on its own limiter). Bot Fight Mode on with JS
+detections, the AI-crawler controls at their defaults. DNSSEC enabled: the zone
+signed at Cloudflare, the DS record the stack's `dnssec_ds` output, pushed to the
+registry by Cloudflare Registrar; activation `pending` when last read. The zone itself
+is a data lookup by name, never a managed resource.
 
-**Cloudflare-managed, on by default, unmanaged on purpose.** The DDoS L7 ruleset
-(no override created; one would be a `ddos_l7` ruleset in code) and the network-layer
-and TLS DDoS protections beneath it,
-the Managed Free WAF ruleset, URL normalization, TLS 1.3, post-quantum key exchange,
-Encrypted Client Hello, HTTP/2 and HTTP/3, Brotli, Universal SSL (Google CA, apex +
-wildcard), `security_level = medium`, the browser integrity check. A plan default is
-not a decision; none of these appear in code until one is changed from code.
+**Cloudflare-managed, on by default, unmanaged on purpose.** The DDoS L7 ruleset (no
+override created; one would be a `ddos_l7` ruleset in code) and the network-layer
+and TLS DDoS protections beneath it, the Managed Free WAF ruleset, URL
+normalization, TLS 1.3, post-quantum key exchange, Encrypted Client Hello, HTTP/2
+and HTTP/3, Brotli, Universal SSL (Google CA, apex + wildcard), `security_level =
+medium`, the browser integrity check. A plan default is not a decision; none of
+these appear in code until one is changed from code.
 
 **Set by hand and recorded here, because no token or provider surface covers them.**
 Two account-level notifications, both e-mail: Certificate Transparency Monitoring (a
 certificate for the domain issued by any CA other than Cloudflare's own) and the
-Universal SSL alert (issuance, renewal, validation failures). Account scope sits
+Universal SSL alert (issuance, renewal, validation failures); account scope sits
 outside both zone tokens, and two alert toggles do not justify a wider one. The
 zone's `security.txt` (RFC 9116: the contact mailbox, languages en/tr, expires
 2027-08-29 and must be renewed before then; served by Cloudflare at
-`/.well-known/security.txt` on the proxied hosts only; provider 5.24 has no resource
+`/.well-known/security.txt` on the proxied hosts only; the provider has no resource
 for it). Two Security-page insights archived as accepted risk: the unproxied CNAMEs
 (GitHub Pages terminates its own TLS) and AI Labyrinth (nothing to protect from AI
 crawlers, and blocking them hides the portfolio from AI search).
@@ -175,52 +207,43 @@ tested, not assumed; the leave agent's Frappe REST probe has crossed it successf
 which is an observation, not a guarantee. Super Bot Fight Mode (Pro) is the first
 plan tier with exceptions, and that, not feature count, is the trigger for paying.
 
-## Repository map
+**Two tokens, by job.** A write token scoped to exactly what the stack manages (DNS,
+zone settings, zone WAF, bot management; grown one scope at a time as each resource
+was adopted) and a read-only inventory token that answers "what is set?" so audits
+never widen the write token. Both are workstation user environment variables per
+`SECRETS.md`.
 
-| Path | Holds | Lifecycle | Lives in (as of this snapshot) |
-|---|---|---|---|
-| `box/compose.yaml` | the proxy stack: Caddy, the `web` network declaration, mounts | slow | steam-lens `deploy/box/` → here (step 2) |
-| `box/Caddyfile` | the global block only (trusted proxies, client-IP header) + `import /etc/caddy/projects/*/sites.caddy` | slow | steam-lens → here, split (step 2) |
-| `box/firewall.sh`, `box/box-firewall.service` | the DOCKER-USER origin-only chain, applied each boot | slow | steam-lens → here (step 2) |
-| `box/README.md` | provisioning + hardening runbook, until Ansible | slow | steam-lens → here (step 2) |
-| `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `backup.enc.env` (`BACKUP_PING_URL`) · README (contract values) | fast | steam-lens → here (step 2) |
-| `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · MariaDB dump units · README (contract values incl. the deploy role ARN) | fast | stanzas from steam-lens's Caddyfile (step 2); README's AWS rows (step 3) |
-| `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads, Bedrock invoke) · the instance, its EIP, the data volume · the GitHub OIDC provider + deploy role · SSM parameter *names* · the monthly budget · `user_data.sh.tftpl` | per-stack | leave-impact-agent `infra/` → here, unchanged (step 3, 2026-08-27: zero-diff plan) |
-| `terraform/stacks/edge/` | every DNS record of the zone (the four proxied A records, the portfolio site's CNAMEs and verification TXTs, the no-mail MX/SPF/DMARC) · the deliberately set zone settings (`ssl`, `always_use_https`, `ipv6`, `min_tls_version`, HSTS + nosniff) · the two security rulesets (custom rule, rate limit) · Bot Fight Mode · DNSSEC; the zone itself is a data lookup | per-stack | imported from the hand-made edge 2026-08-28 (records, settings, rulesets, bot control; every import zero-diff), then hardened from code the same day |
-| `ansible/` | the box from bare metal | slow | not yet (step 4) |
-| `runbooks/` | box-rebuild · add-a-tenant · deploy-edge-change · restore | — | new |
+## The box from a blank host
 
-Everything on the application side of DESIGN's ownership table stays where it is;
-the map above is the whole of what moves.
+`ansible/site.yml` is `box/README.md` transcribed: one play, five roles in a fixed
+order because each depends on the one before, so a failure names its section.
 
-## State map
-
-One remote state per stack, all in the S3 bucket bootstrapped by hand on 2026-08-22
-outside the stacks whose state it stores (a backend has to exist before a stack can
-initialize against it), locked with S3 conditional writes (`use_lockfile`), no
-DynamoDB.
-
-| Stack | Backend key | A bad apply breaks |
+| Role | Does | Why this position |
 |---|---|---|
-| `leave-impact-prod` | `leave-impact-agent/terraform.tfstate` (unchanged by the move) | the app host and its deploy path |
-| `edge` | `edge/terraform.tfstate` | every hostname |
+| `hardening` | installs the sshd drop-in (key-only, no root, no keyboard-interactive) and reloads sshd while the current session can still catch a lockout; installs ufw and unattended-upgrades; allows 22 *before* enabling ufw default-deny; arms the security-update timers | first: everything after it rides the hardened ssh |
+| `docker` | Docker's own apt repository (the distro package lags majors), Engine + the Compose plugin, the login user in group `docker` with a forced re-login so the group takes effect mid-play, the shared `web` network | before the firewall: the DOCKER-USER chain does not exist until Docker does |
+| `firewall` | the `/srv/platform` checkout (its first consumer; the deploy owns the revision afterwards), `firewall.sh` + `box-firewall.service` enabled and applied, an uplink drop-in where the interface is not `eth0`, then an assertion that the chain ends in a DROP on the uplink | needs Docker's chains; must precede the proxy so no port is ever published unguarded |
+| `proxy` | the runtime root `/etc/platform`, the origin pair installed from a workstation path outside the repository (key 0600), the proxy stack up | needs the checkout and the firewall |
+| `backups` | sqlite3 + rclone, the tenant's runtime directory, the backup units installed from the checkout, the nightly timer enabled; verifies the rclone remote exists as the login user | last: needs the proxy's directories; the Drive OAuth itself stays a manual step (headless token exchange), so the role fails on the box and only warns on a test host (`backups_require_remote: false`) |
 
-**Secret values and state.** The `aws_ssm_parameter` resources carry a placeholder
-through the provider's write-only argument (`value_wo` + `value_wo_version`); the
-provider sends it once and never reads the value back, so the real content, put
-out-of-band from a terminal, never enters state. Proven 2026-08-27 on a disposable
-parameter (create → apply → overwrite via the CLI → `apply -refresh-only` → `state
-pull`: the marker string absent, `value` empty, only the version counter moved), then
-applied to the three production parameters. Until that day the resources used
-`value` + `ignore_changes = [value]`, which kept the value out of plans but not out
-of state: refresh read the parameter decrypted and stored it marked sensitive, and
-the state file did hold the certificate and the private key (verified by length
-before the migration). The migration cleared them from the current state (serial
-11 holds no key material); the state bucket's versioning is where old copies still
-live, so expiring noncurrent versions moved up the backlog. Two facts govern any
-future change here: the switch was an in-place update, not a replacement; and a
-change to `value_wo_version` makes the next apply write the placeholder over the
-real value, so the values are saved first and re-put right after, then read back.
+`ansible/verify.sh` is the acceptance checklist, run on the host as root: every
+runbook section read back from the running system (sshd's *effective* config via
+`sshd -T`, ufw active with 22 the only allow, the apt timers armed, Docker and `web`,
+the DOCKER-USER chain admitting 443 from the 15 Cloudflare IPv4 ranges and dropping
+the rest on the uplink, the key 0600, Caddy the only container publishing a port).
+On a host that has no application, Caddy answering every hostname over the installed
+pair with a 502 is the pass: the upstream is absent by design. The one check that
+cannot prove itself from inside, the bare IP timing out on 443 from the internet,
+is run by hand from the workstation.
+
+The blank host is a hand-launched throwaway EC2 instance (`runbooks/ansible-test-host.md`:
+Debian 12 in the leave-impact region, its own security group and key pair, never in
+a stack's state, terminated after the run). The control node is WSL with a
+dedicated key; the committed inventory is an example, the real one is gitignored,
+and the live box is addressed by its ssh alias so the origin address never enters
+this public repository. The play reached a passing `verify.sh` on a blank host on
+2026-08-28. It has not been run against the live box: that box was built by the
+runbook the play transcribes, and replaying it there is its own ruling.
 
 ## The box, on disk
 
@@ -229,13 +252,14 @@ material only: no edits there, and a deploy is `git pull --ff-only` followed by
 `caddy reload` in the proxy container (`compose up -d` only when the proxy's own
 Compose file changed), so a checkout that diverged fails the deploy instead of
 merging box-local state. The proxy mounts the `box/` directory, not the Caddyfile
-alone: a single-file bind mount pins the inode and git replaces files by rename,
-so the container would keep the pre-pull config (observed 2026-08-27). `git rev-parse HEAD` in it answers which
-platform configuration is deployed (not which application images run; those are
-the applications' deploys). Machine-local material lives outside the checkout
-under `/etc/platform/`: `box/certs/` (the Origin CA pair), `<tenant>/` (files
-decrypted from that tenant's `*.enc.env`, pushed from the workstation). Cloning
-creates none of it; `box/README.md` provisions it. Applications keep their own
+alone: a single-file bind mount pins the inode and git replaces files by rename, so
+the container would keep the pre-pull config (observed 2026-08-27, three 200s on
+the old config). `git rev-parse HEAD` in the checkout answers which platform
+configuration is deployed (not which application images run; those are the
+applications' deploys). Machine-local material lives outside the checkout under
+`/etc/platform/`: `box/certs/` (the Origin CA pair), `<tenant>/` (files decrypted
+from that tenant's `*.enc.env`, pushed from the workstation). Cloning creates none
+of it; the runbook and the `proxy` role provision it. Applications keep their own
 `/srv/<name>/` directories.
 
 ## The tenant seam, mechanically
@@ -244,25 +268,93 @@ A tenant is one directory under `projects/` and one line in the application's
 Compose file (`networks: web: external: true`). The proxy mounts the checkout's
 `projects/` read-only at `/etc/caddy/projects/` and the global Caddyfile imports
 `*/sites.caddy`: one file per tenant holding all of its sites, because Caddy's
-`import` accepts a single wildcard in its pattern (`*/*.caddy` is rejected at
-adapt time; observed with `caddy validate` on 2.11.4 before the cutover, which is
-what turned the first draft's per-hostname files into one file per tenant). A new
-tenant's stanzas are live on the next `caddy reload` of the proxy without touching `box/` or
-the proxy's Compose file. The values crossing the seam, and who produces each, are
-DESIGN's contract table. The backup units follow the same pattern: the timer and
-service under `projects/<name>/` are installed into `/etc/systemd/system/` by the
-runbook (later the playbook), and the script they run, from the checkout, knows
-that tenant's data.
+`import` accepts a single wildcard in its pattern (`*/*.caddy` is rejected at adapt
+time; observed with `caddy validate` on 2.11.4 before the cutover, which is what
+turned the first draft's per-hostname files into one file per tenant). A new
+tenant's stanzas are live on the next `caddy reload` of the proxy without touching
+`box/` or the proxy's Compose file; `runbooks/add-a-tenant.md` is the platform half
+of onboarding. The values crossing the seam, and who produces each, are DESIGN's
+contract table, instantiated in each `projects/<name>/README.md`. The backup units
+follow the same pattern: the timer and service under `projects/<name>/` are
+installed into `/etc/systemd/system/` by the `backups` role, and the script they
+run, from the checkout, knows that tenant's data.
 
-## Open items visible from here
+## Repository map
 
-- The app host is single-tenant by ruling (DESIGN, ownership table): its proxy
-  configuration is laid down by `user_data.sh.tftpl` inside `stacks/leave-impact-prod`,
-  and the `projects/`-style adapter is extracted there only if a second tenant
-  arrives. The Caddyfile flip from the hello page to the app, when its first HTTP
+| Path | Holds | Changes |
+|---|---|---|
+| `box/compose.yaml` | the proxy stack: Caddy 2, 443 only, the `box/` and `projects/` directory mounts, the cert mount from `/etc/platform`, the `web` network as external | slow |
+| `box/Caddyfile` | the global block (Cloudflare `trusted_proxies`, the client-IP header), the shared `origin_tls` snippet, `import /etc/caddy/projects/*/sites.caddy` | slow |
+| `box/firewall.sh`, `box/box-firewall.service` | the DOCKER-USER origin-only chain, applied each boot before Docker; the uplink from `IFACE` (default `eth0`) | slow |
+| `box/README.md` | the provisioning + hardening runbook the play transcribes; still the reference for the manual steps (the Drive OAuth, the origin pair) | slow |
+| `ansible/` | `site.yml`, the five roles, `verify.sh`, `ansible.cfg`, the example inventory | slow |
+| `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `backup.enc.env` (`BACKUP_PING_URL`) · README (the contract values, the backup setup and the restore procedure) | fast |
+| `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
+| `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the state bucket itself · `user_data.sh.tftpl` | per stack |
+| `terraform/stacks/edge/` | the zone's eleven records · the five deliberately set settings · the two security rulesets · Bot Fight Mode · DNSSEC; the zone is a data lookup | per stack |
+| `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md`; each written when first exercised (a box rebuild and a restore have not been, so they have none yet) | — |
+| `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
+| `.github/workflows/ci.yml`, `.githooks/pre-commit` | the credential-free CI; the fail-closed gitleaks hook | slow |
+
+Everything on the application side of DESIGN's ownership table stays in its
+application repository; the map above is the whole of what this one holds.
+
+## State map
+
+One remote state per stack, both in one S3 bucket, locked with S3 conditional
+writes (`use_lockfile`), no DynamoDB.
+
+| Stack | Backend key | A bad apply breaks |
+|---|---|---|
+| `leave-impact-prod` | `leave-impact-agent/terraform.tfstate` (unchanged by the move from the agent's repository) | the app host and its deploy path |
+| `edge` | `edge/terraform.tfstate` | every hostname |
+
+**The bucket that holds its own state.** The bucket was made by hand on 2026-08-22,
+because a stack cannot store state in a bucket it has not created yet, and adopted
+by import into `leave-impact-prod` on 2026-08-28 rather than given a second stack:
+versioning, encryption, the public-access block, owner-enforced ACLs, and a
+lifecycle rule are code now, with `prevent_destroy` on the bucket, since destroying
+it would destroy the stack's own state. The lifecycle rule expires noncurrent
+versions after 30 days (the rollback horizon for a corrupted write) and clears the
+delete markers the lock file leaves behind on every plan.
+
+**Secret values and state.** The `aws_ssm_parameter` resources carry a placeholder
+through the provider's write-only argument (`value_wo` + `value_wo_version`); the
+provider sends it once and never reads the value back, so the real content, put
+out-of-band from a terminal, never enters state. Proven 2026-08-27 on a disposable
+parameter (create → apply → overwrite via the CLI → `apply -refresh-only` → `state
+pull`: the marker string absent, `value` empty, only the version counter moved),
+then applied to the three production parameters. Until that day the resources used
+`value` + `ignore_changes = [value]`, which kept the value out of plans but not out
+of state: refresh read the parameter decrypted and stored it marked sensitive, and
+the state file did hold the certificate and the private key (verified by length
+before the migration). The migration cleared them from the current state, and the
+seven noncurrent versions that still held the key material were purged by hand the
+day the lifecycle rule landed. Two facts govern any future change here: the switch
+was an in-place update, not a replacement; and a change to `value_wo_version` makes
+the next apply write the placeholder over the real value, so the values are saved
+first and re-put right after, then read back.
+
+## Deliberately not done, and what would bring each in
+
+- **The app host is single-tenant.** Its proxy configuration is laid down by
+  `user_data.sh.tftpl` inside `stacks/leave-impact-prod`, and the `projects/`-style
+  adapter is extracted there only if a second tenant arrives (DESIGN, the ownership
+  table). The Caddyfile flip from the hello page to the app, when its first HTTP
   surface lands, happens in that stack.
-- PostgreSQL backup on the app host: none yet.
-- The MariaDB dump unit and its restore drill: pending on the box.
-- Security analytics on the free plan keep 24 hours; a decision that needs traffic
-  evidence (widening the exploit-path rule, moving the rate-limit threshold) reads
-  that window on the day, not a history.
+- **No backup for Frappe's MariaDB or the app host's PostgreSQL.** The trigger is
+  data worth keeping: the leave-impact agent's first generated world. Until then a
+  dump unit protects placeholder data, and its restore drill would drill nothing.
+- **The live box has not been replayed by the playbook.** It was built by the
+  runbook the play transcribes and verified by the same checks; replaying needs the
+  control node's key in the box's `authorized_keys` and a sudo prompt, and is its
+  own ruling. A rebuild would force it.
+- **No box-rebuild or restore runbook.** Runbooks are written when first exercised;
+  neither has been. The pieces exist (the play, the backup README's restore
+  procedure); the end-to-end drill has not run.
+- **Traffic evidence is a 24-hour window.** Security analytics on the free plan keep
+  a day; a decision that needs traffic evidence (widening the exploit-path rule,
+  moving the rate-limit threshold) reads that window on the day, not a history.
+- **No key on either host for SOPS.** Values are decrypted on the workstation and
+  pushed over ssh; a platform-box recipient that lets the box decrypt its own files
+  moves the host-compromise boundary and is an explicit later change.

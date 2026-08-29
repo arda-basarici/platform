@@ -1,4 +1,4 @@
 # Where the origin cert pair lives on the CONTROL NODE (outside any
 # repository). The box gets the Cloudflare Origin CA pair; a test host gets a
-# self-signed pair generated into the same path (DESIGN, "Step 4 rulings").
+# self-signed pair generated into the same path (DESIGN, "The playbook's rulings").
 platform_certs_dir: "~/.platform/certs"

@@ -1,6 +1,6 @@
 #!/bin/sh
 # The acceptance checklist for a host built by site.yml — every section of
-# box/README.md read back from the running host (DESIGN, "Step 4 rulings").
+# box/README.md read back from the running host (DESIGN, "The playbook's rulings").
 # Runs ON the host as root:
 #   ansible -i inventory/local.yml all -b -m script -a verify.sh
 # Each line is PASS or FAIL with what was seen; exit 1 if anything failed.

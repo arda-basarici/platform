@@ -13,7 +13,7 @@ operating reference.
 | AWS host | EC2 instance role | SSM Parameter Store (SecureString, standard tier) | `aws ssm put-parameter --overwrite --value file://…` from an admin terminal; never `--value` inline, never a Terraform variable |
 | GitHub Actions → AWS | GitHub OIDC → STS | no long-lived AWS secret exists | — |
 | GitHub Actions → the box | a forced-command ssh private key | GitHub environment secret (the one thing the workflow itself holds) | the environment's settings page |
-| the box (netcup) | an age identity per consumer scope; today no key on the box, decryption happens on the workstation and the plaintext is piped over ssh | SOPS-encrypted files in git (`*.enc.env`): an application's beside its stack in its repository, decrypted to a 0600 `.env` beside the stack; the platform's under `projects/<name>/` here, decrypted to `/etc/platform/<name>/` (0600, outside the checkout) | `sops edit`; recipients per `.sops.yaml` |
+| the box (netcup) | today: the workstation's age identity decrypts, the plaintext crosses ssh into a 0600 file under `/etc/platform/`; no key lives on the box. Designed next step, not built: an age identity per consumer scope so the host decrypts its own files | SOPS-encrypted files in git (`*.enc.env`): an application's beside its stack in its repository, decrypted to a 0600 `.env` beside the stack; the platform's under `projects/<name>/` here, decrypted to `/etc/platform/<name>/` (0600, outside the checkout) | `sops edit`; recipients per `.sops.yaml` |
 | a workstation | the user | user environment variables | the `api-key-onboarding` ceremony: `Read-Host` → User env var, never a chat or transcript |
 | Terraform | — | stores, paths, access policies, references only | a parameter's value is `value_wo` (write-only, never in state); the content is put out-of-band. If Terraform recreates a parameter, the placeholder is back: the production value is repopulated out-of-band before the dependent service counts as restored |
 
@@ -24,12 +24,15 @@ credential must be stored (the ssh key), it is scoped to one command on one host
 
 | Class | Examples | Handling |
 |---|---|---|
-| **secret** | API keys, database passwords, private keys, tokens, OAuth refresh tokens | vaulted per the table above; never in a commit, a log, a chat, or intentionally copied into an infrastructure/config backup. Application data stores and their backups may themselves hold secret material and are protected accordingly |
+| **secret** | API keys, database passwords, private keys, tokens, OAuth refresh tokens | secret-grade handling per the table above: normally vaulted, with the re-issuable exceptions named in the ownership table; never in a commit, a log, a chat, or intentionally copied into an infrastructure/config backup. Application data stores and their backups may themselves hold secret material and are protected accordingly |
 | **sensitive config** | the box's origin address, account identifiers | not published, but not vaulted as if it were a credential; a GitHub environment secret or a private note is enough |
-| **normal config** | image digests, hostnames, parameter *names*, public keys, host keys | committed where it is consumed |
+| **normal config** | image digests, hostnames, parameter *names*, public keys, ssh host *public* keys and fingerprints | committed where it is consumed |
 
-Only the first class enters a store. Treating everything operationally important as a
-secret makes the system harder to reason about.
+Only the first class requires secret-grade handling. It normally enters a secrets
+store; material that is re-issuable at will (the Origin CA pairs) may instead live
+only at its runtime location and be regenerated rather than recovered. Treating
+everything operationally important as a secret makes the system harder to reason
+about.
 
 ## Ownership follows the consumer
 
@@ -40,7 +43,7 @@ consumer runs.
 | Secret class | Owner | Store |
 |---|---|---|
 | proxy TLS private material (Cloudflare Origin CA pairs) | platform | host-native: SSM on AWS, the box's `certs/` (re-issuable from the dashboard) |
-| backup credentials (rclone token, the dead-man's-switch URL) | platform | box SOPS, platform recipient |
+| backup credentials (rclone token, the dead-man's-switch URL) | platform | the platform-owned SOPS file (today's recipients: workstation + recovery); the rclone token itself is the host's rclone config, written by the manual OAuth step |
 | deploy-boundary credentials (the forced-command ssh key) | platform | GitHub environment secret |
 | application API credentials | the application | SOPS or SSM by host |
 | application admin tokens | the application | SOPS or SSM by host |
