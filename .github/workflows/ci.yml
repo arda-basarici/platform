@@ -24,7 +24,7 @@ jobs:
       # the gate that cannot be skipped. A secret pushed past a hook is still in
       # the commits behind it, hence the full history.
       - name: Gitleaks (full history)
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITLEAKS_ENABLE_SUMMARY: "false"
           # On a pull_request event the action calls the GitHub API to list the
