@@ -128,7 +128,7 @@ script never touches. A botched rule set can dark the sites, never the shell.
 ```sh
 # Install the unit (the script runs from the checkout), apply now
 # (idempotent — safe to re-run):
-ssh box 'chmod +x /srv/platform/box/firewall.sh \
+ssh -t box 'chmod +x /srv/platform/box/firewall.sh \
   && sudo cp /srv/platform/box/box-firewall.service /etc/systemd/system/ \
   && sudo systemctl daemon-reload && sudo systemctl enable --now box-firewall.service'
 
@@ -159,14 +159,15 @@ Origin CA pair (dashboard → SSL/TLS → Origin Server; covers the apex +
 Cloudflare's edge, exactly its job, and is re-issuable from the dashboard at
 any time, so the box-side files are the whole story: never committed,
 nothing to back up. It lives at `/etc/platform/box/certs/`, mounted read-only
-into Caddy at `/etc/caddy/certs/`, the path every stanza's `tls` line names.
+into Caddy at `/etc/caddy/certs/`, the path the global Caddyfile's `origin_tls`
+snippet names; every stanza imports the snippet rather than the path.
 
 ```sh
 # From the workstation, after issuing the pair in the dashboard. Explicit
 # permissions: the key is readable by root only; Caddy runs as root in the
 # official image and reads it through the read-only mount.
 scp ardabasarici.dev.pem ardabasarici.dev.key box:/tmp/
-ssh box 'sudo install -d -m 0750 /etc/platform/box/certs \
+ssh -t box 'sudo install -d -m 0750 /etc/platform/box/certs \
   && sudo install -m 0644 /tmp/ardabasarici.dev.pem /etc/platform/box/certs/ \
   && sudo install -m 0600 /tmp/ardabasarici.dev.key /etc/platform/box/certs/ \
   && rm /tmp/ardabasarici.dev.pem /tmp/ardabasarici.dev.key'

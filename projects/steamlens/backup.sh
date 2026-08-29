@@ -15,9 +15,9 @@
 # On success this pings the healthchecks.io dead-man's switch. The alert fires
 # on SILENCE, so every failure mode — this script erroring, the timer never
 # firing, the box being down — surfaces through one signal, with no
-# failure-path code here. BACKUP_PING_URL arrives via the service unit from
-# /srv/steamlens/.env (SOPS-managed like every box secret); when unset, the
-# ping is skipped and the silence itself raises the alert.
+# failure-path code here. BACKUP_PING_URL arrives via the service unit's
+# EnvironmentFile (the unit says where and why); when unset, the ping is skipped
+# and the silence itself raises the alert.
 set -euo pipefail
 
 PROJECT=steamlens

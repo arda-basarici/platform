@@ -42,6 +42,22 @@ rule first (`aws ec2 authorize-security-group-ingress` / `revoke-...`).
 
 ## Use (from WSL, the control node)
 
+The `proxy` role copies the origin pair from `~/.platform/certs/` on the control
+node (`platform_certs_dir`). A test host gets a self-signed pair under the same
+two names, so the real Origin CA key never leaves the workstation for a test;
+generate it once, outside any repository:
+
+```sh
+mkdir -p ~/.platform/certs && chmod 0700 ~/.platform/certs
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 30 \
+  -subj '/CN=*.ardabasarici.dev' -addext 'subjectAltName=DNS:*.ardabasarici.dev,DNS:ardabasarici.dev' \
+  -keyout ~/.platform/certs/ardabasarici.dev.key -out ~/.platform/certs/ardabasarici.dev.pem
+chmod 0600 ~/.platform/certs/ardabasarici.dev.key
+```
+
+(`curl -k` in the checks below is what tolerates it; on the box the same path
+holds the Cloudflare-issued pair, copied there by hand per `box/README.md`.)
+
 ```sh
 cd /mnt/c/Users/ardab/Desktop/projects/platform/ansible
 export ANSIBLE_CONFIG=/mnt/c/Users/ardab/Desktop/projects/platform/ansible/ansible.cfg   # absolute: /mnt/c is world-writable, the cwd cfg is ignored

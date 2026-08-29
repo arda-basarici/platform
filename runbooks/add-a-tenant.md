@@ -15,14 +15,19 @@ kept current each time it runs.
 
 ## Steps
 
-1. **Cloudflare:** an A record for the hostname to the origin, **proxied**
-   (orange-cloud; never save it grey, even briefly — the origin IP would enter
-   passive-DNS archives permanently). SSL mode is zone-wide (Full (strict))
-   and the Origin CA pair already covers `*.ardabasarici.dev`; nothing to issue.
+1. **Cloudflare, from code:** a `cloudflare_dns_record` for the hostname in
+   `terraform/stacks/edge/records.tf`, copied from an existing proxied A record
+   (`proxied = true`, never grey, not even briefly — the origin IP would enter
+   passive-DNS archives permanently), then `plan` (exactly `1 to add`) and
+   `apply` from the laptop. SSL mode is zone-wide (Full (strict)) and the Origin
+   CA pair already covers `*.ardabasarici.dev`; nothing to issue. The dashboard
+   is read-only for records: a record made by hand is a drift the next plan
+   reports, and adopting it afterwards is an `import` block plus a zero-diff
+   plan, the same test every hand-made resource passed.
 2. **The stanza:** in `projects/<name>/sites.caddy`, one file per tenant
    holding all of its sites (Caddy's import takes a single wildcard, so the
    file name is fixed and the directory is the variable). Copy the shape of
-   an existing one: `tls` with the shared pair, `reverse_proxy` to
+   an existing one: `import origin_tls` for the shared pair, `reverse_proxy` to
    the container name with `header_up X-Forwarded-For {client_ip}`. Decide the
    per-tenant policy in the stanza and say why in place: request-body cap,
    security headers (or their absence, when the upstream already sets them),
@@ -45,11 +50,13 @@ kept current each time it runs.
    `/etc/platform/<name>/backup.env` (the steamlens README shows the flow).
    Not done until a restore has been verified.
 6. **The private inventory:** any new secret gets its row (consumer · store ·
-   path · rotation · if lost) in the stream's `secrets-inventory.md`.
+   path · rotation · if lost) in the private operational record that
+   `SECRETS.md` describes.
 
 ## Removing a tenant
 
 Reverse order: delete the tenant's directory (or one stanza from its `sites.caddy`), deploy
-the proxy, verify the remaining hostnames, disable and remove its units,
-delete the A record last (so no window exists where the record points at a
-proxy that no longer knows the host).
+the proxy, verify the remaining hostnames, disable and remove its units, and
+last, remove the record's resource from `records.tf` and apply (exactly `1 to
+destroy`), so no window exists where the record points at a proxy that no
+longer knows the host.
