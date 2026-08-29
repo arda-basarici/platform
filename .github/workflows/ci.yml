@@ -27,6 +27,13 @@ jobs:
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITLEAKS_ENABLE_SUMMARY: "false"
+          # On a pull_request event the action calls the GitHub API to list the
+          # PR's commits before scanning them; without a token it stops with
+          # "GITHUB_TOKEN is now required to scan pull requests". This is the
+          # per-run token GitHub mints for the job, scoped by the `permissions`
+          # block above (contents: read) — nothing to store or rotate. Found on
+          # the repo's first PR (Dependabot, 2026-08-30): push runs never needed it.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # The Terraform line the laptop applies with; the lock files pin providers.
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
