@@ -32,6 +32,7 @@ check "box-firewall applied"    "active"  "$(systemctl is-active box-firewall.se
 uplink=$(ip route show default | awk '{print $5; exit}')
 check "DOCKER-USER: 443 from Cloudflare" "15" "$(iptables -S DOCKER-USER | grep -- "--ctorigdstport 443" | grep -- "-j RETURN" | grep -c -- "-i $uplink ")"
 check "DOCKER-USER: drop the rest"       "1"  "$(iptables -S DOCKER-USER | grep -c -- "^-A DOCKER-USER -i $uplink -j DROP$")"
+check "DOCKER-USER v6: drop everything"  "1"  "$(ip6tables -S DOCKER-USER | grep -c -- "^-A DOCKER-USER -i $uplink -j DROP$")"
 
 # --- Proxy: Caddy answers every hostname over the installed cert; the
 # upstream is absent by design on a bare host, so 502 is the pass.

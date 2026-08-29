@@ -22,9 +22,11 @@ set -eu
 
 IFACE="${IFACE:-eth0}"   # the box's uplink; a systemd drop-in overrides it on a host whose NIC is named differently
 
-# Cloudflare's published IPv4 ranges (cloudflare.com/ips, fetched
-# 2026-08-10) — the same list the Caddyfile's trusted_proxies pins; if
-# Cloudflare ever announces a change, refresh both together.
+# Cloudflare's published IPv4 ranges (cloudflare.com/ips-v4, fetched
+# 2026-08-10) — one of three pinned copies with the Caddyfile's
+# trusted_proxies and the AWS stack's variables.tf; scripts/check-cf-ranges.sh
+# keeps them identical in ci and compares them with the published list
+# weekly. A drift alarm there is the refresh trigger: all three together.
 CF_RANGES_V4="173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22"
 
 # Create-if-missing makes boot ordering a non-issue: whichever of Docker and

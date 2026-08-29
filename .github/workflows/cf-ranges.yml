@@ -1,0 +1,24 @@
+# The one check that reads the internet, kept out of ci.yml so a push never
+# depends on cloudflare.com answering: the three pinned range copies against
+# https://www.cloudflare.com/ips-v4, weekly. A red run here is the refresh
+# trigger (all three copies, a plan, the box files deployed) — Cloudflare's
+# announcement e-mail is the other signal, and this one cannot be missed.
+# GitHub pauses scheduled workflows after 60 days without a push; a run can
+# also be started by hand from the Actions tab (workflow_dispatch).
+name: cloudflare-ranges
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: sh scripts/check-cf-ranges.sh --published

@@ -219,6 +219,7 @@ traffic evidence is a guess, and the free plan's analytics keep one day of it.
 | edge-wide response headers (a `http_response_headers_transform` ruleset) | a header every tenant should carry that the origins do not set | `nosniff` rides on the HSTS setting; `X-Frame-Options` / `Permissions-Policy` over Frappe untested; the tenant stanzas set their own |
 | Authenticated Origin Pulls (mTLS edge → origin) | a second control on origin reachability is wanted | both origins already admit Cloudflare ranges only; defense in depth, not a hole |
 | Cloudflare Access in front of `hr-w1` | its own design step | it adds a service-to-service trust boundary (the leave agent's machine path needs a service token), not a browser login toggle |
+| IPv6 at the origins (v6 ranges in `trusted_proxies`, the firewalls, the security group) | an origin record becomes AAAA | Cloudflare dials an origin over the family of its record, and every origin record is an A record; a visitor's IPv6 ends at the edge (`ipv6 = on`). The box drops all forwarded v6 and the instance has no v6 address, so a v6 allowance today would admit no one. When the trigger fires, all three copies gain the `ips-v6` list together and `check-cf-ranges.sh` learns the second list |
 | more custom rules (4 of 5 free slots empty) | the 24-hour security analytics show traffic a rule would address | `cf.threat_score` is retired (always 0); a rule without evidence is a guess |
 
 ## Terraform: plan and apply stay on the laptop

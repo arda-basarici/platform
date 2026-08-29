@@ -121,6 +121,7 @@ show the shape.
 | `terraform/stacks/edge/` | the Cloudflare zone's contents |
 | `terraform/stacks/leave-impact-prod/` | the agent's AWS host and deploy path, plus the state bucket |
 | `runbooks/` | procedures, each written the first time it ran |
+| `scripts/` | checks CI and the laptop share: the Cloudflare range copies against each other and the published list |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy and the SOPS recipients |
 
 ## What it demonstrates

@@ -21,14 +21,16 @@ variable "instance_type" {
   default     = "t4g.small"
 }
 
-# Cloudflare's published IPv4 egress ranges (cloudflare.com/ips, fetched
+# Cloudflare's published IPv4 egress ranges (cloudflare.com/ips-v4, fetched
 # 2026-08-10) — the ONLY sources the security group admits on 443. This is the
 # third pinned copy of the same list; the other two are the box's
 # `box/firewall.sh` and its `box/Caddyfile` `trusted_proxies`. Pinned rather than
 # fetched so a plan is reproducible offline and the firewall never changes
-# without a deliberate edit; if Cloudflare ever announces a change, refresh all
-# three together. IPv4 only, like the box: Cloudflare dials origins over v4 (the
-# origin DNS record is an A record) and the instance publishes no v6 address.
+# without a deliberate edit; `scripts/check-cf-ranges.sh` keeps the three
+# identical in ci and compares them with the published list weekly — a drift
+# alarm there is the refresh trigger, all three together. IPv4 only, like the
+# box: Cloudflare dials origins over v4 (the origin DNS record is an A record)
+# and the instance publishes no v6 address.
 variable "cloudflare_ipv4_ranges" {
   description = "Cloudflare edge IPv4 CIDRs allowed to reach the instance on 443."
   type        = list(string)

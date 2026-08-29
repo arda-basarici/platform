@@ -106,6 +106,13 @@ jobs:
           test "$declared" -gt 0 && test "$declared" -eq "$adapted"
           run_caddy validate 2>&1 | grep -v '"level"'
 
+      # The three pinned copies of Cloudflare's IPv4 ranges (the box Caddyfile,
+      # the box firewall, the AWS security group) must be one list; a lagging
+      # copy is a partial outage with no error anywhere. The weekly
+      # cloudflare-ranges workflow runs the same script against the published list.
+      - name: cloudflare ranges (the three copies agree)
+        run: sh scripts/check-cf-ranges.sh
+
       # The play, parsed: YAML, role structure, every module name resolved
       # against the installed collections (a misspelled module fails here,
       # exit 4). Versions match the WSL control node that proved the play on a
