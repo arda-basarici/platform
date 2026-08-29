@@ -232,8 +232,12 @@ adopting a hand-made resource: the import lands, the plan goes quiet, and only
 then does the resource change from code. Anything else stops until understood.
 
 `plan` and `apply` are laptop-side acts. Repository CI runs only what needs no
-credentials: a full-history secret scan, `fmt -check`, and a per-stack `validate`
-against a read-only lock file. A CI `plan` would need a read identity over state
+credentials: a full-history secret scan, `fmt -check`, a per-stack `validate`
+against a read-only lock file, and the same standard for every other
+configuration kind — ShellCheck on the scripts and the rendered cloud-init, the
+play's syntax check, `caddy validate` on the assembled box layout, the pinned
+Cloudflare ranges checked for drift (the guard is "what can reach a host
+unchecked", not a lint suite). A CI `plan` would need a read identity over state
 and every provider, and raw plan output carries values and topology that do not
 belong in a public pull request; it arrives once that identity and the output
 redaction are designed, and apply-from-CI behind an approval gate (the way both
@@ -352,11 +356,6 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
   clients, the paid-plan trigger); then EC2 status-check alarms with auto-recover
   and a subscribed recipient, and Docker log rotation on the next controlled
   recreate. Nothing here is gated on the application.
-- **CI over every configuration kind, still credential-free**: an Ansible syntax
-  check, ShellCheck on the scripts, `caddy validate` on the assembled proxy layout,
-  a drift check of the pinned Cloudflare ranges against the published lists,
-  Actions pinned by commit. The guard is "what can reach a host unchecked", not a
-  lint suite.
 - **The playbook against the live box, in two steps**: a `--check --diff` run
   first, its differences classified (intended, unintended, not representable in
   check mode) and recorded as summaries, then the replay itself on an operational

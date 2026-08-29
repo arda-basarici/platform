@@ -104,12 +104,20 @@ ansible -i ansible/inventory/local.yml all -b -m script -a ansible/verify.sh   #
 ssh box 'cd /srv/platform && git pull --ff-only && cd box && docker compose exec caddy caddy reload --config /etc/caddy/box/Caddyfile'   # a box-layer or stanza change
 ```
 
-CI runs only what needs no credential: gitleaks over the full history, `terraform
-fmt`, and a per-stack `validate` with the lock file read-only. `plan` and `apply`
-never leave the laptop; a CI plan would need a read identity over state and every
-provider, and its output does not belong in a public pull request. The real
-inventory and the local `.tfvars` are gitignored; the committed `.example` files
-show the shape.
+CI runs only what needs no credential, over every kind of configuration here:
+gitleaks over the full history; `terraform fmt` and a per-stack `validate` with
+the lock file read-only; ShellCheck on the three scripts a host runs and on the
+cloud-init script rendered by the real `templatefile`; `ansible-playbook
+--syntax-check` with the play's collections pinned; `caddy validate` on the box
+layout with every tenant file imported and a throwaway pair where the Origin CA
+pair sits (the pass is the adapted config naming every declared hostname, never
+the word "valid" alone); the three pinned copies of Cloudflare's IPv4 ranges
+diffed against each other, and weekly against the published list. Actions are
+pinned by commit and moved by Dependabot pull requests, never by aging. `plan`
+and `apply` never leave the laptop; a CI plan would need a read identity over
+state and every provider, and its output does not belong in a public pull
+request. The real inventory and the local `.tfvars` are gitignored; the
+committed `.example` files show the shape.
 
 ## Layout
 

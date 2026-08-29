@@ -144,7 +144,10 @@ flowchart TD
     EDIT([edit in this repository]) --> PR["`pull request / push
     CI, credential-free: gitleaks over the full history ·
     terraform fmt · per-stack init -backend=false + validate
-    with the lock file read-only`"]
+    with the lock file read-only · shellcheck (scripts + rendered
+    cloud-init) · ansible --syntax-check · caddy validate on the
+    assembled box layout · the Cloudflare range copies identical
+    (weekly: equal to the published list)`"]
     PR --> MERGE([merge])
     MERGE --> TF["`a Terraform stack:
     laptop — plan against remote state, read, apply`"]
@@ -237,7 +240,7 @@ order because each depends on the one before, so a failure names its section.
 | `docker` | Docker's own apt repository (the distro package lags majors), Engine + the Compose plugin, the login user in group `docker` with a forced re-login so the group takes effect mid-play, the shared `web` network | before the firewall: the DOCKER-USER chain does not exist until Docker does |
 | `firewall` | the `/srv/platform` checkout (its first consumer; the deploy owns the revision afterwards), `firewall.sh` + `box-firewall.service` enabled and applied, an uplink drop-in where the interface is not `eth0`, then an assertion that the chain ends in a DROP on the uplink | needs Docker's chains; must precede the proxy so no port is ever published unguarded |
 | `proxy` | the runtime root `/etc/platform`, the origin pair installed from a workstation path outside the repository (key 0600), the proxy stack up | needs the checkout and the firewall |
-| `backups` | sqlite3 + rclone, the tenant's runtime directory, the backup units installed from the checkout, the nightly timer enabled; verifies the rclone remote exists as the login user | last: needs the proxy's directories; the Drive OAuth itself stays a manual step (headless token exchange; the procedure is `projects/steamlens/README.md`, "One-time setup"), so the role fails on the box and only warns on a test host (`backups_require_remote: false`) |
+| `backups` | sqlite3 + rclone, the tenant's runtime directory, the backup units installed from the checkout with a drop-in setting `User=` to the inventory's login user, the nightly timer enabled; verifies the rclone remote exists as the login user | last: needs the proxy's directories; the Drive OAuth itself stays a manual step (headless token exchange; the procedure is `projects/steamlens/README.md`, "One-time setup"), so the role fails on the box and only warns on a test host (`backups_require_remote: false`) |
 
 `ansible/verify.sh` is the acceptance checklist, run on the host as root: every
 runbook section read back from the running system (sshd's *effective* config via
