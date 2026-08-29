@@ -51,6 +51,44 @@ jobs:
       # lock needs `terraform providers lock -platform=windows_amd64
       # -platform=linux_amd64` on the laptop before this runner can init it
       # (first run, 2026-08-27, failed on a Windows-only lock).
+      # The shell that runs as root on the box (firewall.sh), as the login user
+      # on a timer (backup.sh), and as the acceptance test (verify.sh). The
+      # image is pinned by digest, like the actions by SHA. `-S style` is the
+      # strictest level: a finding is fixed or annotated in place with its why,
+      # never silenced globally.
+      - name: shellcheck (the scripts a host runs)
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo             koalaman/shellcheck@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb             -S style box/firewall.sh projects/steamlens/backup.sh ansible/verify.sh
+
+      # cloud-init is a Terraform template; `validate` checks the HCL around it,
+      # not the shell inside it. Render it with the real renderer (`templatefile`
+      # through `terraform console`) on placeholder values, then shellcheck the
+      # result. Console insists on an initialized backend, so the stack is copied
+      # without `backend.tf` first. The two names match the `templatefile` call
+      # in instance.tf; a third variable there fails this step at render time.
+      - name: shellcheck (cloud-init, rendered)
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          cp terraform/stacks/leave-impact-prod/*.tf terraform/stacks/leave-impact-prod/*.tftpl              terraform/stacks/leave-impact-prod/.terraform.lock.hcl "$tmp"/
+          rm "$tmp/backend.tf"
+          terraform -chdir="$tmp" init -backend=false -lockfile=readonly -input=false >/dev/null
+          echo 'templatefile("user_data.sh.tftpl", {app_hostname="probe.example", cloudflare_ipv4_ranges=["192.0.2.0/24"]})'             | terraform -chdir="$tmp" console | sed '1d;$d' > "$tmp/user_data.rendered.sh"
+          grep -q 'probe.example {' "$tmp/user_data.rendered.sh"   # the render saw our input, not a default
+          docker run --rm -v "$tmp:/r"             koalaman/shellcheck@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb             -S style /r/user_data.rendered.sh
+
+      # The play, parsed: YAML, role structure, every module name resolved
+      # against the installed collections (a misspelled module fails here,
+      # exit 4). Versions match the WSL control node that proved the play on a
+      # blank host (2026-08-28). No host is contacted; the example inventory
+      # only gives the parser hosts to bind to.
+      - name: ansible-playbook --syntax-check
+        run: |
+          set -euo pipefail
+          pip install --quiet ansible-core==2.20.1
+          ansible-galaxy collection install --quiet community.general:==12.1.0 community.docker:==5.0.4
+          ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg" ansible-playbook --syntax-check             -i ansible/inventory/example.yml ansible/site.yml
+
       - name: terraform validate (every stack)
         run: |
           set -euo pipefail

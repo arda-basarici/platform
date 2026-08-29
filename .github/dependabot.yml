@@ -1,9 +1,10 @@
 # Pins move by pull request, never by aging. Actions are pinned by commit SHA in
 # ci.yml (a tag can be re-pointed; a SHA cannot), so a bump here is the only way
-# they change. A provider bump rewrites a stack's lock file with the runner's
-# hash only; ci's `-lockfile=readonly` then fails until `terraform providers
-# lock -platform=windows_amd64 -platform=linux_amd64` is re-run on the laptop
-# and pushed to the PR (the same trap ci.yml records from 2026-08-27).
+# they change. A provider bump rewrites a stack's lock file; Dependabot keeps
+# every platform hash the lock already had (the first bump, aws 6.62.0 on
+# 2026-08-30, passed ci's `-lockfile=readonly` untouched), so the Linux-only
+# lock trap ci.yml records is a laptop `init -upgrade` hazard, not this path's.
+# A provider bump is merged only after a zero-diff plan on the laptop with it.
 version: 2
 updates:
   - package-ecosystem: github-actions
