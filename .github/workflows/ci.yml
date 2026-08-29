@@ -92,7 +92,7 @@ jobs:
         run: |
           set -euo pipefail
           pip install --quiet ansible-core==2.20.1
-          ansible-galaxy collection install --quiet community.general:==12.1.0 community.docker:==5.0.4
+          ansible-galaxy collection install community.general:==12.1.0 community.docker:==5.0.4
           ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg" ansible-playbook --syntax-check             -i ansible/inventory/example.yml ansible/site.yml
 
       - name: terraform validate (every stack)
