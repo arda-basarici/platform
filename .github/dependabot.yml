@@ -1,0 +1,20 @@
+# Pins move by pull request, never by aging. Actions are pinned by commit SHA in
+# ci.yml (a tag can be re-pointed; a SHA cannot), so a bump here is the only way
+# they change. A provider bump rewrites a stack's lock file with the runner's
+# hash only; ci's `-lockfile=readonly` then fails until `terraform providers
+# lock -platform=windows_amd64 -platform=linux_amd64` is re-run on the laptop
+# and pushed to the PR (the same trap ci.yml records from 2026-08-27).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: terraform
+    directory: /terraform/stacks/edge
+    schedule:
+      interval: monthly
+  - package-ecosystem: terraform
+    directory: /terraform/stacks/leave-impact-prod
+    schedule:
+      interval: monthly
