@@ -83,6 +83,29 @@ jobs:
           grep -q 'probe.example {' "$tmp/user_data.rendered.sh"   # the render saw our input, not a default
           docker run --rm -v "$tmp:/r"             koalaman/shellcheck@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb             -S style /r/user_data.rendered.sh
 
+      # The proxy config as the box assembles it: `box/Caddyfile` importing
+      # every `projects/*/sites.caddy`, mounted at the paths compose.yaml uses,
+      # with a throwaway self-signed pair where the `origin_tls` snippet expects
+      # the Origin CA pair (validate loads the files; the real key never leaves
+      # the workstation). The image is the box's own `caddy:2-alpine`, pinned by
+      # digest here. A validator whose mounts failed validates the image default
+      # and still says "Valid configuration" (gotcha, 2026-08-30), so the pass
+      # is the adapted JSON naming every hostname the tenant files declare —
+      # counted, not listed, so adding a tenant changes nothing here.
+      - name: caddy validate (box layout with every tenant)
+        run: |
+          set -euo pipefail
+          certs=$(mktemp -d)
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 1             -subj '/CN=*.ardabasarici.dev' -addext 'subjectAltName=DNS:*.ardabasarici.dev,DNS:ardabasarici.dev'             -keyout "$certs/ardabasarici.dev.key" -out "$certs/ardabasarici.dev.pem" 2>/dev/null
+          run_caddy() {
+            docker run --rm -v "$PWD/box:/etc/caddy/box:ro" -v "$PWD/projects:/etc/caddy/projects:ro"               -v "$certs:/etc/caddy/certs:ro"               caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648               caddy "$@" --config /etc/caddy/box/Caddyfile --adapter caddyfile
+          }
+          declared=$(grep -h -E '^[a-z0-9.-]+ \{' projects/*/sites.caddy | wc -l)
+          adapted=$(run_caddy adapt 2>/dev/null | grep -o '"[a-z0-9.-]*\.ardabasarici\.dev"' | sort -u | wc -l)
+          echo "hostnames declared by tenants: $declared, seen by caddy: $adapted"
+          test "$declared" -gt 0 && test "$declared" -eq "$adapted"
+          run_caddy validate 2>&1 | grep -v '"level"'
+
       # The play, parsed: YAML, role structure, every module name resolved
       # against the installed collections (a misspelled module fails here,
       # exit 4). Versions match the WSL control node that proved the play on a
