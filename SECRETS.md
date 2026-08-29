@@ -10,7 +10,7 @@ operating reference.
 
 | Runtime | Authentication path | Store | How a value gets there |
 |---|---|---|---|
-| AWS host | EC2 instance role | SSM Parameter Store (SecureString, standard tier) | `aws ssm put-parameter --overwrite --value file://…` from an admin terminal; never `--value` inline, never a Terraform variable |
+| AWS host | EC2 instance role | SSM Parameter Store (SecureString, standard tier) | `aws ssm put-parameter --overwrite --value file://…` from an admin terminal; never `--value` inline, never a Terraform variable. On Windows the CLI reads `file://` in the console codepage, so a non-ASCII value goes through `--cli-input-json` with `\uXXXX` escapes in an ASCII file, and every put is verified by bytes, not by eye |
 | GitHub Actions → AWS | GitHub OIDC → STS | no long-lived AWS secret exists | — |
 | GitHub Actions → the box | a forced-command ssh private key | GitHub environment secret (the one thing the workflow itself holds) | the environment's settings page |
 | the box (netcup) | today: the workstation's age identity decrypts, the plaintext crosses ssh into a 0600 file under `/etc/platform/`; no key lives on the box. Designed next step, not built: an age identity per consumer scope so the host decrypts its own files | SOPS-encrypted files in git (`*.enc.env`): an application's beside its stack in its repository, decrypted to a 0600 `.env` beside the stack; the platform's under `projects/<name>/` here, decrypted to `/etc/platform/<name>/` (0600, outside the checkout) | `sops edit`; recipients per `.sops.yaml` |
@@ -25,8 +25,8 @@ credential must be stored (the ssh key), it is scoped to one command on one host
 | Class | Examples | Handling |
 |---|---|---|
 | **secret** | API keys, database passwords, private keys, tokens, OAuth refresh tokens | secret-grade handling per the table above: normally vaulted, with the re-issuable exceptions named in the ownership table; never in a commit, a log, a chat, or intentionally copied into an infrastructure/config backup. Application data stores and their backups may themselves hold secret material and are protected accordingly |
-| **sensitive config** | the box's origin address, account identifiers | not published, but not vaulted as if it were a credential; a GitHub environment secret or a private note is enough |
-| **normal config** | image digests, hostnames, parameter *names*, public keys, ssh host *public* keys and fingerprints | committed where it is consumed |
+| **sensitive config** | the box's origin address, the healthchecks ping URL | not published, but not vaulted as if it were a credential; a GitHub environment secret or a private note is enough |
+| **normal config** | image digests, hostnames, parameter *names*, public keys, ssh host *public* keys and fingerprints, the AWS account id (it is part of every ARN the contract publishes, and possession of it grants nothing) | committed where it is consumed |
 
 Only the first class requires secret-grade handling. It normally enters a secrets
 store; material that is re-issuable at will (the Origin CA pairs) may instead live

@@ -4,15 +4,12 @@
 #
 # Terraform owns the parameters' existence and names; it never owns their
 # values. Each is created with a placeholder through the write-only argument
-# (`value_wo`): the provider sends it once and never reads the value back, so
-# the real content, put out-of-band from Arda's terminal (`aws ssm
-# put-parameter --overwrite`), never enters the state file. Refresh sees only
-# the parameter's version counter move. The one way an apply overwrites the
-# real value is a change to `value_wo_version` — that is the signal to write
-# again, so it stays at 1 unless the placeholder itself must be re-sent (and
-# then the real values are re-put right after; proven 2026-08-27 on a scratch
-# parameter, then on these three). Before that date the resources used `value`
-# + `ignore_changes`, which kept the values out of *plans* but not out of state.
+# (`value_wo`), and the real content is put out-of-band (`aws ssm put-parameter
+# --overwrite`). The hazard to keep in view: `value_wo_version` is the write
+# trigger, so any change to it makes the next apply overwrite the real value with
+# the placeholder — it stays at 1, and if it must move, the values are saved
+# first and re-put right after. The proof that nothing enters state, and the
+# history before it, are ARCHITECTURE's state map ("Secret values and state").
 # The pair is a Cloudflare Origin CA certificate issued for this
 # host alone — never the box's pair copied over: one pair per host, revocable
 # independently.

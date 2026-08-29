@@ -27,7 +27,7 @@ repository's `infra/` on 2026-08-27, zero-diff plan against the same state).
 | File | Role |
 |---|---|
 | `sites.caddy` | both stanzas: the production HR site, then world site 1 |
-| `../../terraform/stacks/leave-impact-prod/` | the AWS host: network, security group, instance role, instance + EIP + data volume, OIDC deploy role, parameter names, budget, cloud-init template |
+| `../../terraform/stacks/leave-impact-prod/` | the AWS host: network, security group, instance role, instance + EIP + data volume, OIDC deploy role, parameter names, budget, cloud-init template; and the remote-state bucket both stacks use, adopted into this one |
 
 Stack commands run from the repository root with the Identity Center profile:
 `AWS_PROFILE=leave-impact terraform -chdir=terraform/stacks/leave-impact-prod plan`.

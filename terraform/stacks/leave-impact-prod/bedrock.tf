@@ -3,7 +3,8 @@
 # invocation needs the profile itself AND every foundation model it routes to
 # (the `eu.` profiles fan out across EU regions), so the data source resolves
 # both from the ID list — `bedrock_models` in `variables.tf` is the only thing to
-# edit when M2's measurements settle the model choice.
+# edit when the agent's investigator milestone measures and settles the model
+# choice.
 data "aws_bedrock_inference_profile" "shortlist" {
   for_each             = toset(var.bedrock_models)
   inference_profile_id = each.value

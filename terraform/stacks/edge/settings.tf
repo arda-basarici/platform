@@ -1,5 +1,6 @@
-# Only the settings that were deliberately set (the three carrying a modified_on in
-# the settings API at the import, all 2026-08-09). Plan defaults stay absent: a
+# Five settings: the three that were deliberately set by hand and adopted (the ones
+# carrying a modified_on in the settings API at the import, all 2026-08-09), then
+# two introduced from code (the second section). Plan defaults stay absent: a
 # setting appears here when it is changed from code, never because Cloudflare has a
 # value for it.
 

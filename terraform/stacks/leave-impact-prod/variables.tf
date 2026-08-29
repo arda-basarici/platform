@@ -8,7 +8,8 @@ variable "app_hostname" {
     The Cloudflare-proxied hostname that fronts the instance. It appears in two
     places only (the Cloudflare A record and the instance's Caddyfile), so renaming
     later is cheap. Chosen 2026-08-26 as plumbing, not a public face — a demo-facing
-    name can be added at M3 as a second record to the same origin.
+    name can be added at the agent's demo milestone as a second record to the same
+    origin.
   EOT
   type        = string
   default     = "leave-agent.ardabasarici.dev"
@@ -22,8 +23,8 @@ variable "instance_type" {
 
 # Cloudflare's published IPv4 egress ranges (cloudflare.com/ips, fetched
 # 2026-08-10) — the ONLY sources the security group admits on 443. This is the
-# third pinned copy of the same list; the other two are the steam-lens box's
-# `deploy/box/firewall.sh` and its Caddyfile `trusted_proxies`. Pinned rather than
+# third pinned copy of the same list; the other two are the box's
+# `box/firewall.sh` and its `box/Caddyfile` `trusted_proxies`. Pinned rather than
 # fetched so a plan is reproducible offline and the firewall never changes
 # without a deliberate edit; if Cloudflare ever announces a change, refresh all
 # three together. IPv4 only, like the box: Cloudflare dials origins over v4 (the
@@ -52,8 +53,10 @@ variable "cloudflare_ipv4_ranges" {
 
 # The Bedrock shortlist the instance role may invoke — inference-profile IDs
 # (Frankfurt hosts current models only behind `eu.`/`global.` profiles). This is
-# the M0 probe catalogue, not a choice: the choice waits for M2's measurements
-# on the golden set, and rows are dropped or added here when it lands.
+# the catalogue from the agent's probe days, not a choice: the choice waits for
+# the investigator milestone's measurements on the golden set (the agent
+# repository's VISION names the milestones), and rows are dropped or added here
+# when it lands.
 variable "bedrock_models" {
   description = "Inference-profile IDs the instance role may invoke."
   type        = list(string)

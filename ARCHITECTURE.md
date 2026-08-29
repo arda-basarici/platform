@@ -81,6 +81,17 @@ the security headers and the request-body cap the stanza declares, rewrites
 container name over `web` → the application. A tenant's stanza is the only
 per-tenant part of that path; everything before it is shared.
 
+*Response headers, and which layer's value is live.* Three layers can set them:
+the edge (the zone's HSTS setting with `nosniff`), a tenant's stanza (`header`
+block), and the application itself (Frappe's nginx sends its own HSTS, 2 years with
+preload). Cloudflare's setting replaces the header on every proxied response, so
+the edge's value wins: every hostname served `max-age=86400` on 2026-08-29, while
+the steamlens stanza declares 180 days and Frappe's nginx two years. Both origin
+copies are therefore dead in effect and kept as marked fallbacks (comments in the
+stanzas say so), live only if the edge setting were ever removed. Headers the edge
+does not set (`Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options`) pass
+through from whichever origin layer set them.
+
 **An application deploy.** Two shapes, both gated by a GitHub `production`
 environment with a required reviewer, both shipping an image tagged by the exact
 commit CI tested:
@@ -175,10 +186,12 @@ rate-limiting rule, `client flood shed`: 300 requests / 10 s per source IP per c
 on every proxied host, verified bots exempt, block for 10 s; a coarse ceiling on one
 client, tuned only from evidence. Endpoint-aware limits stay with the applications
 (steam-lens's `/search` relies on its own limiter). Bot Fight Mode on with JS
-detections, the AI-crawler controls at their defaults. DNSSEC enabled: the zone
-signed at Cloudflare, the DS record the stack's `dnssec_ds` output, pushed to the
-registry by Cloudflare Registrar; activation `pending` when last read. The zone itself
-is a data lookup by name, never a managed resource.
+detections, the AI-crawler controls at their defaults. DNSSEC requested: the zone
+is signed at Cloudflare and the DS record is the stack's `dnssec_ds` output, but a
+live read on 2026-08-29 (a DS query against the `.dev` parent) found no DS there
+and answers unvalidated, so the chain of trust is not yet complete; the registrar
+step is pending, and the state is read from the parent, never inferred from the
+plan. The zone itself is a data lookup by name, never a managed resource.
 
 **Cloudflare-managed, on by default, unmanaged on purpose.** The DDoS L7 ruleset (no
 override created; one would be a `ddos_l7` ruleset in code) and the network-layer
@@ -224,7 +237,7 @@ order because each depends on the one before, so a failure names its section.
 | `docker` | Docker's own apt repository (the distro package lags majors), Engine + the Compose plugin, the login user in group `docker` with a forced re-login so the group takes effect mid-play, the shared `web` network | before the firewall: the DOCKER-USER chain does not exist until Docker does |
 | `firewall` | the `/srv/platform` checkout (its first consumer; the deploy owns the revision afterwards), `firewall.sh` + `box-firewall.service` enabled and applied, an uplink drop-in where the interface is not `eth0`, then an assertion that the chain ends in a DROP on the uplink | needs Docker's chains; must precede the proxy so no port is ever published unguarded |
 | `proxy` | the runtime root `/etc/platform`, the origin pair installed from a workstation path outside the repository (key 0600), the proxy stack up | needs the checkout and the firewall |
-| `backups` | sqlite3 + rclone, the tenant's runtime directory, the backup units installed from the checkout, the nightly timer enabled; verifies the rclone remote exists as the login user | last: needs the proxy's directories; the Drive OAuth itself stays a manual step (headless token exchange), so the role fails on the box and only warns on a test host (`backups_require_remote: false`) |
+| `backups` | sqlite3 + rclone, the tenant's runtime directory, the backup units installed from the checkout, the nightly timer enabled; verifies the rclone remote exists as the login user | last: needs the proxy's directories; the Drive OAuth itself stays a manual step (headless token exchange; the procedure is `projects/steamlens/README.md`, "One-time setup"), so the role fails on the box and only warns on a test host (`backups_require_remote: false`) |
 
 `ansible/verify.sh` is the acceptance checklist, run on the host as root: every
 runbook section read back from the running system (sshd's *effective* config via
@@ -286,12 +299,12 @@ run, from the checkout, knows that tenant's data.
 | `box/compose.yaml` | the proxy stack: Caddy 2, 443 only, the `box/` and `projects/` directory mounts, the cert mount from `/etc/platform`, the `web` network as external | slow |
 | `box/Caddyfile` | the global block (Cloudflare `trusted_proxies`, the client-IP header), the shared `origin_tls` snippet, `import /etc/caddy/projects/*/sites.caddy` | slow |
 | `box/firewall.sh`, `box/box-firewall.service` | the DOCKER-USER origin-only chain, applied each boot before Docker; the uplink from `IFACE` (default `eth0`) | slow |
-| `box/README.md` | the provisioning + hardening runbook the play transcribes; still the reference for the manual steps (the Drive OAuth, the origin pair) | slow |
+| `box/README.md` | the provisioning + hardening runbook the play transcribes; still the reference for the manual origin-pair step (the Drive OAuth is the steamlens adapter README's) | slow |
 | `ansible/` | `site.yml`, the five roles, `verify.sh`, `ansible.cfg`, the example inventory | slow |
 | `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `backup.enc.env` (`BACKUP_PING_URL`) · README (the contract values, the backup setup and the restore procedure) | fast |
 | `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
 | `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the state bucket itself · `user_data.sh.tftpl` | per stack |
-| `terraform/stacks/edge/` | the zone's eleven records · the five deliberately set settings · the two security rulesets · Bot Fight Mode · DNSSEC; the zone is a data lookup | per stack |
+| `terraform/stacks/edge/` | the zone's eleven records (eight adopted, the three no-mail ones created from code) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · Bot Fight Mode · DNSSEC; the zone is a data lookup | per stack |
 | `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md`; each written when first exercised (a box rebuild and a restore have not been, so they have none yet) | — |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
 | `.github/workflows/ci.yml`, `.githooks/pre-commit` | the credential-free CI; the fail-closed gitleaks hook | slow |
@@ -302,7 +315,10 @@ application repository; the map above is the whole of what this one holds.
 ## State map
 
 One remote state per stack, both in one S3 bucket, locked with S3 conditional
-writes (`use_lockfile`), no DynamoDB.
+writes (`use_lockfile`), no DynamoDB. The bucket lives in the leave-impact AWS
+account, so a plan of the `edge` stack needs that account's identity (the
+Identity Center profile) for its state as well as the Cloudflare token for its
+resources: the two stacks share a backend identity and nothing else.
 
 | Stack | Backend key | A bad apply breaks |
 |---|---|---|
@@ -358,3 +374,12 @@ first and re-put right after, then read back.
 - **No key on either host for SOPS.** Values are decrypted on the workstation and
   pushed over ssh; a platform-box recipient that lets the box decrypt its own files
   moves the host-compromise boundary and is an explicit later change.
+- **No host-up signal on either host.** The box's only alert is the backup
+  dead-man's switch (a nightly silence, not a liveness check); the app host has
+  none. The first observability step is one external HTTPS monitor per hostname,
+  planned before anything else is built on the hosts; EC2 status-check alarms with
+  a recipient follow it.
+- **No instance-replacement procedure for the app host.** A change to
+  `user_data.sh.tftpl` replaces the instance; the sequence (SSM values present,
+  `value_wo_version` untouched, apply, boot log, the hello page, a zero-diff plan)
+  has run once by hand and is written as a runbook the next time it runs.

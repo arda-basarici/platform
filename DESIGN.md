@@ -257,7 +257,7 @@ shipping alone, each with an acceptance stated before it started.
 | 2. Extract the box layer from steam-lens | 2026-08-27: a split, not a move; the shared layer to `box/`, the site stanzas to `projects/*/sites.caddy`, the backup units and `BACKUP_PING_URL` to `projects/steamlens/`; `deploy.sh` stayed in steam-lens (deployment entrypoint); one deploy of the proxy with the old Caddyfile as the rollback | `steamlens.`, `hr.`, `hr-w1.` answered before anything was deleted from steam-lens; the import glob verified (and corrected, the one-wildcard finding above); afterwards each application repository knows only itself |
 | 3. Move the AWS stack | 2026-08-27: `infra/` → `terraform/stacks/leave-impact-prod/`, the contract values into `projects/leave-impact/README.md`, the application workflow pointing here; then the `value_wo` migration; then (2026-08-28) the state bucket adopted into the stack | zero-diff plan for the move; the state-pull proof for the migration (ARCHITECTURE, the state map), the three production values reading back afterwards; zero-diff for the bucket |
 | 4. Ansible for the host | 2026-08-28: `box/README.md` transcribed into five roles and an acceptance script | a blank cloud host reached a passing `verify.sh` from the playbook alone |
-| 4b. The edge into code | 2026-08-28: every record, the deliberately set settings, the two hand-made rulesets and Bot Fight Mode imported; then TLS 1.2, DNSSEC, HSTS, the no-mail records applied from code | every import `N to import, 0 to add, 0 to change, 0 to destroy`, then `No changes`; every hardening applied verified live (a TLS 1.0 handshake refused; the zone signed, its DS record handed to the registrar, registry activation pending when last read) |
+| 4b. The edge into code | 2026-08-28: every record, the deliberately set settings, the two hand-made rulesets and Bot Fight Mode imported; then TLS 1.2, DNSSEC, HSTS, the no-mail records applied from code | every import `N to import, 0 to add, 0 to change, 0 to destroy`, then `No changes`; every hardening applied verified live (a TLS 1.0 handshake refused; the zone signed at Cloudflare, the DS record not yet at the `.dev` registry when last read on 2026-08-29) |
 
 The edge step was not in the original four; it entered when the extraction of the
 box made the one remaining hand-made layer conspicuous, and it followed the same
@@ -342,6 +342,44 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
   path becomes the bottleneck, since the change moves the host-compromise boundary.
 - **Authenticated CI `plan`**, then apply-from-CI behind an approval gate: when a
   second person applies, or the first stops applying from a laptop.
-- **HSTS to six months** on the zone: after a canary week with nothing broken.
-- **The runbooks not yet written** (box rebuild, restore): written the first time
-  each is exercised, never ahead of it.
+- **HSTS to six months** on the zone: after a canary week with nothing broken
+  (the day-long value was applied 2026-08-28).
+- **The runbooks not yet written** (box rebuild, restore, instance replacement on
+  the app host): written the first time each is exercised, never ahead of it.
+- **A host-up signal, then minimal observability**: one external HTTPS monitor per
+  hostname first (it also answers whether Bot Fight Mode challenges machine
+  clients, the paid-plan trigger); then EC2 status-check alarms with auto-recover
+  and a subscribed recipient, and Docker log rotation on the next controlled
+  recreate. Nothing here is gated on the application.
+- **CI over every configuration kind, still credential-free**: an Ansible syntax
+  check, ShellCheck on the scripts, `caddy validate` on the assembled proxy layout,
+  a drift check of the pinned Cloudflare ranges against the published lists,
+  Actions pinned by commit. The guard is "what can reach a host unchecked", not a
+  lint suite.
+- **The playbook against the live box, in two steps**: a `--check --diff` run
+  first, its differences classified (intended, unintended, not representable in
+  check mode) and recorded as summaries, then the replay itself on an operational
+  reason (a rebuild, or a `box/` change large enough that hand-applying it is the
+  riskier path).
+- **Evidence as committed record, not narration**: dated summaries of the zero-diff
+  plans, the `verify.sh` passes and the check-mode outcome, never raw plan or
+  transcript output, which carries topology.
+- **The rebuild-and-restore drill**, once the restore of the SteamLens backup has
+  been exercised by hand: blank host → play → `verify.sh` → the application via its
+  own deploy path → a real restore, timed; its runbook written during it. The
+  strongest evidence this repository can add.
+- **Per-tenant proxy networks** (one per tenant, Caddy joining all, each tenant
+  only its own; one line per application repository): at the next proxy recreate,
+  paired with hardening the Caddy container, since the proxy is the pivot between
+  tenants. No trigger: the HR system's data already justifies it.
+- **Private connectivity between the hosts**, the leave agent to Frappe first: a
+  design step of its own at the first cross-host call that should not ride the
+  public edge, the mechanism (public edge + application auth, mTLS, WireGuard, a
+  mesh, Cloudflare's private network) chosen then. An inbound Cloudflare Tunnel was
+  considered and dropped: it substitutes for the "443 from Cloudflare ranges"
+  clause rather than adding to it, and the origin-side question reopens only if
+  this design lands on Cloudflare Zero Trust.
+- **Security depth before the agent's real HTTP surface**: the instance role's
+  read scope narrowed (every container reaches the role through IMDS, and Bedrock
+  needs that), a custom SSM document replacing `AWS-RunShellScript` for the deploy
+  role, a signed or commit-pinned checkout for the root-run `firewall.sh` pull.

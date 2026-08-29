@@ -2,8 +2,10 @@
 # this is its one stanza).
 # No request_body cap: Frappe uploads (attachments, CSV imports) are legitimate;
 # nginx inside the stack enforces its own 50m. No security-header block either:
-# Frappe's nginx already sends HSTS (2 y, preload) and nosniff, and a second copy
-# with different values is noise a browser resolves by taking the first.
+# Frappe's nginx already sends HSTS (2 y, preload) and nosniff, and the edge's
+# HSTS setting replaces that header on every proxied response anyway (the visitor
+# sees the zone's value; ARCHITECTURE, "which layer's value is live"), so a third
+# copy here would decide nothing.
 hr.ardabasarici.dev {
 	import origin_tls
 

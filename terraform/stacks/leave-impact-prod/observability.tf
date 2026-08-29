@@ -1,5 +1,6 @@
-# Spend guardrails. The budget was created by hand during the aws-bootstrap probe
-# (2026-08-22) and adopted here, so Terraform owns its thresholds from now on.
+# Spend guardrails. The budget was created by hand when the account was first set
+# up (2026-08-22, the agent's probe days) and adopted here, so Terraform owns its
+# thresholds from now on.
 # $30 is the alarm ceiling, not a target; the 25 % forecast alert is the early
 # warning that a resource was left running.
 import {

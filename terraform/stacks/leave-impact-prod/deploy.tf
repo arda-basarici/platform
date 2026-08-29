@@ -1,5 +1,6 @@
 # Continuous deployment without stored keys: GitHub Actions federates into this
-# account through OIDC (DESIGN, "The surrounding AWS set"). A workflow job
+# account through OIDC (the ruling is the leave-impact-agent repository's DESIGN,
+# "The surrounding AWS set, and nothing more"). A workflow job
 # presents a short-lived GitHub-signed token; STS exchanges it for temporary
 # credentials only when the token's subject names this repository's
 # `production` environment. Nothing to rotate, nothing to leak.
@@ -14,7 +15,8 @@ resource "aws_iam_openid_connect_provider" "github" {
 }
 
 # Trust: the subject a job emits when it runs under an environment. Recorded
-# from the first run (oidc-deploy probe, 2026-08-26): repositories created
+# from the first run (the OIDC deploy probe of the agent's probe days,
+# 2026-08-26): repositories created
 # after mid-2026 carry the owner's and the repository's numeric ids in the
 # subject — `repo:<owner>@<id>/<repo>@<id>:environment:<name>` — which is the
 # stronger pin (a renamed or re-created repository of the same name inherits

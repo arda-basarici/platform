@@ -5,7 +5,7 @@
 # --- Ingress: the security group is the AWS twin of the box's firewall.sh -----
 # 443 from Cloudflare's pinned ranges and nothing else — no 22, no 80. A scanner
 # that finds the Elastic IP gets silence; the only working path is through
-# Cloudflare's edge, where TLS, bot cover, and (from M1) Access gating live.
+# Cloudflare's edge, where TLS and bot cover live.
 resource "aws_security_group" "app" {
   name        = "leave-agent-app"
   description = "443 from Cloudflare edge ranges only; no SSH (SSM instead)"

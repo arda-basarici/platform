@@ -86,18 +86,18 @@ flowchart TD
 | Claim | How it was tested | The honest caveat |
 |---|---|---|
 | The AWS stack moved repositories without touching production | `terraform plan` on the same remote state after the move: **0 to add, 0 to change, 0 to destroy** | the same state key; a move, not a rebuild |
-| The hand-made edge is fully described by code | every import (11 records, 5 settings, 2 rulesets, bot control) landed as `N to import, 0/0/0`, then `No changes`; the hardening applied from code afterwards was verified live (a TLS 1.0 handshake refused; the zone signed and its DS record handed to the registrar, registry activation pending when last read) | only settings that were set on purpose entered code; Cloudflare's defaults stay unmanaged by design |
+| The hand-made edge is fully described by code | every import (8 records, 3 settings, 2 rulesets, bot control) landed as `N to import, 0/0/0`, then `No changes`; what followed was created from code (the three no-mail records, the TLS 1.2 floor, HSTS, DNSSEC) and verified live (a TLS 1.0 handshake refused; the zone signed at Cloudflare, its DS record not yet at the `.dev` registry when last read, 2026-08-29) | only settings that were set on purpose entered code; Cloudflare's defaults stay unmanaged by design |
 | The production secret values in Parameter Store never enter Terraform state | proven on a disposable SSM parameter (`state pull` after an out-of-band overwrite: the marker absent, `value` empty), then applied to the three production parameters | before the migration the state *did* hold the origin key; the old versions were purged and a lifecycle rule now expires them |
 | The box is rebuildable from the repository | a blank Debian 12 cloud host reached a passing `verify.sh` (sshd key-only, ufw 22 only, the Cloudflare-only chain, the proxy answering every hostname) from the play alone | the live box has not been replayed; a 502 is the pass on a host with no application |
 | Adding a tenant changes no shared configuration | a tenant is one directory under `projects/` and one `caddy reload`; Caddy validates before swapping, so a broken stanza fails closed | Caddy's `import` takes one wildcard, which is why a tenant's sites live in one file |
 | A deploy of the box layer is a commit hash | the box runs the proxy from a `git pull --ff-only` checkout; `git rev-parse HEAD` there is the deployed configuration | learned the hard way: a single-file bind mount pins the inode, and a pull replaced the file underneath it |
-| The AWS deploy path holds no long-lived credential | GitHub OIDC → STS into a role whose trust names one repository's `production` environment, whose only power is `ssm:SendCommand` on instances tagged for the app | the SteamLens path still holds one secret: a forced-command ssh key that can run one script |
+| The AWS deploy path holds no long-lived credential | GitHub OIDC → STS into a role whose trust names one repository's `production` environment, whose only *write* power is `ssm:SendCommand` on instances tagged for the app (the rest is finding the host and reading the command's outcome) | the SteamLens path still holds one secret: a forced-command ssh key that can run one script |
 
 ## Operate it
 
 ```
 git config core.hooksPath .githooks                      # once per clone: the fail-closed secret scan
-terraform -chdir=terraform/stacks/edge plan              # the zone, against remote state (laptop-side by design)
+AWS_PROFILE=leave-impact terraform -chdir=terraform/stacks/edge plan   # the zone; its state rides the same S3 bucket, so the AWS identity too (laptop-side by design)
 AWS_PROFILE=leave-impact terraform -chdir=terraform/stacks/leave-impact-prod plan
 ansible-playbook -i ansible/inventory/local.yml ansible/site.yml   # a host from blank (WSL; runbooks/ansible-test-host.md)
 ansible -i ansible/inventory/local.yml all -b -m script -a ansible/verify.sh   # the acceptance checklist, on the host

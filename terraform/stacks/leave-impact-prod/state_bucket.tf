@@ -4,11 +4,10 @@
 # second stack. The chicken-and-egg stays real: destroying this resource would
 # destroy the stack's own state, hence prevent_destroy.
 #
-# Why a lifecycle rule: versioning keeps every past state file, and before the
-# 2026-08-27 value_wo migration state held the origin certificate and key. The
-# migration cleared the current version; noncurrent versions keep old content
-# until they expire. 30 days is the rollback horizon for a corrupted write.
-# The versions that held key material were purged by hand the day this landed.
+# Why a lifecycle rule: versioning keeps every past state file, and old state
+# once held secret material (ARCHITECTURE's state map tells that story). 30 days
+# is the rollback horizon for a corrupted write; noncurrent versions keep their
+# content until then.
 
 resource "aws_s3_bucket" "tfstate" {
   bucket = "leave-impact-tfstate-445743457479"

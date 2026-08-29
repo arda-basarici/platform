@@ -13,7 +13,11 @@ steamlens.ardabasarici.dev {
 	# Baseline security headers — set at the proxy so every response wears
 	# them, whichever app route answered. HSTS: 180 days, deliberately
 	# without `preload` (preload is effectively irreversible and a decision
-	# to take on its own, not by default). nosniff pins declared MIME types;
+	# to take on its own, not by default). Note that the edge's own HSTS
+	# setting (stacks/edge/settings.tf) replaces this header on every
+	# proxied response — the visitor saw max-age=86400 on 2026-08-29 — so
+	# this copy is a fallback, live only if the edge setting is removed;
+	# ARCHITECTURE, "which layer's value is live". nosniff pins declared MIME types;
 	# the referrer policy sends cross-site targets the origin, never full
 	# URLs (report paths name what a visitor read). The Permissions-Policy
 	# disowns the powerful APIs this site will never call.
