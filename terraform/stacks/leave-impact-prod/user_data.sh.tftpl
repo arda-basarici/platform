@@ -76,14 +76,23 @@ cat > "$DATA_MNT/proxy/Caddyfile" <<'EOF'
 	# no ACME, no port 80.
 	auto_https off
 	servers {
-		# Believe X-Forwarded-* only from Cloudflare's edge (the pinned ranges).
+		# Believe X-Forwarded-* only from Cloudflare's edge (the pinned ranges),
+		# and take the visitor's address from CF-Connecting-IP: without that
+		# line {client_ip} is the Cloudflare node that dialed us, not the
+		# visitor (the box Caddyfile makes the same two statements).
 		trusted_proxies static ${join(" ", cloudflare_ipv4_ranges)}
+		client_ip_headers CF-Connecting-IP
 	}
 }
 
 ${app_hostname} {
 	tls /certs/origin.pem /certs/origin.key
-	reverse_proxy hello:80
+	reverse_proxy hello:80 {
+		# One entry, the verified visitor: the incoming header already carries
+		# Cloudflare's own hops, and appending would put an edge IP last. Same
+		# contract as the box's stanzas.
+		header_up X-Forwarded-For {client_ip}
+	}
 }
 EOF
 
@@ -105,7 +114,7 @@ services:
     image: traefik/whoami:v1.11
     restart: unless-stopped
     environment:
-      WHOAMI_NAME: leave-agent hello (M0 instance probe)
+      WHOAMI_NAME: leave-agent hello (the host, before the application)
     networks: [web]
 volumes:
   caddy-data:

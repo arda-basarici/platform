@@ -79,7 +79,7 @@ flowchart TD
 | The box from a blank host: five roles in dependency order + the acceptance script | `ansible/` | passes on a blank host (2026-08-28); the live box not yet replayed |
 | Per-tenant adapters: site stanzas, backup units, the contract each tenant and the platform agree on | `projects/<name>/` | two tenants |
 | The secrets policy: ownership, classes, stores by workload identity, recovery | `SECRETS.md`, `.sops.yaml` | the exact inventory stays private |
-| Runbooks, written when first exercised | `runbooks/` | add-a-tenant · the Ansible test host |
+| Runbooks, written when first exercised | `runbooks/` | add-a-tenant · the Ansible test host · replace the app host |
 
 ## Proven, not asserted
 

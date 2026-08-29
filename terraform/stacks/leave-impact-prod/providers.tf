@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.10" # S3-native state locking (`use_lockfile`)
+  required_version = ">= 1.11" # write-only arguments (`value_wo`, secrets.tf); 1.10 gave S3-native locking
 
   required_providers {
     aws = {

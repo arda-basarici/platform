@@ -305,7 +305,7 @@ run, from the checkout, knows that tenant's data.
 | `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
 | `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the state bucket itself · `user_data.sh.tftpl` | per stack |
 | `terraform/stacks/edge/` | the zone's eleven records (eight adopted, the three no-mail ones created from code) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · Bot Fight Mode · DNSSEC; the zone is a data lookup | per stack |
-| `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md`; each written when first exercised (a box rebuild and a restore have not been, so they have none yet) | — |
+| `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md` · `replace-the-app-host.md`; each written when first exercised (a box rebuild and a restore have not been, so they have none yet) | — |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
 | `.github/workflows/ci.yml`, `.githooks/pre-commit` | the credential-free CI; the fail-closed gitleaks hook | slow |
 
@@ -379,7 +379,11 @@ first and re-put right after, then read back.
   none. The first observability step is one external HTTPS monitor per hostname,
   planned before anything else is built on the hosts; EC2 status-check alarms with
   a recipient follow it.
-- **No instance-replacement procedure for the app host.** A change to
-  `user_data.sh.tftpl` replaces the instance; the sequence (SSM values present,
-  `value_wo_version` untouched, apply, boot log, the hello page, a zero-diff plan)
-  has run once by hand and is written as a runbook the next time it runs.
+- **Replacing the app host's instance costs minutes of downtime, accepted.** A
+  change to `user_data.sh.tftpl` replaces the instance (the data volume is
+  re-attached, the Elastic IP moves with it); there is no blue-green or second
+  instance, and none is planned while one hello page or one application is what
+  goes dark. Exercised 2026-08-29 (about three minutes end to end);
+  `runbooks/replace-the-app-host.md` is the procedure and its seven checks,
+  including the one that tells a re-attached data volume from a freshly
+  formatted one.
