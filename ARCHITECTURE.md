@@ -143,6 +143,24 @@ backups themselves are sensitive data and are treated as such. This is the only
 backup that exists: Frappe's MariaDB and the app host's PostgreSQL have none (the
 restraint list, below, carries the trigger).
 
+**An alert.** Three channels, each for what it can actually see. From outside: the
+four UptimeRobot monitors (below, "Set by hand") say whether each hostname's
+upstream answers. From the box: the backup's dead-man's switch on healthchecks.io
+says whether last night's run happened. From AWS: one SNS topic
+(`leave-impact-alerts`, one confirmed e-mail subscriber) receives everything the
+account raises — two CloudWatch alarms on the app host's status checks (a *system*
+check failure recovers the instance onto healthy hardware, same id, EIP and volumes,
+and notifies; an *instance* check failure, the OS itself, only notifies, since an
+automatic reboot would erase the evidence), the budget's four thresholds, and Cost
+Anomaly Detection's default per-service monitor at a $2 absolute threshold,
+delivered when found rather than in a daily digest. Delivery was proven on
+2026-08-30 by forcing the instance-check alarm into ALARM by hand: the first try
+was refused at the topic (a policy that named the account where CloudWatch
+publishes as a service principal), visible only in the alarm's action history —
+the silent failure an unproven alarm hides — and the second try, after the fix,
+delivered the ALARM and the OK mails. Nothing watches the box's host itself beyond the monitors,
+and nothing watches disk on either host (the restraint list).
+
 **An infrastructure change.**
 
 ```mermaid
@@ -327,7 +345,7 @@ run, from the checkout, knows that tenant's data.
 | `ansible/` | `site.yml`, the five roles, `verify.sh`, `ansible.cfg`, the example inventory | slow |
 | `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `backup.enc.env` (`BACKUP_PING_URL`) · README (the contract values, the backup setup and the restore procedure) | fast |
 | `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
-| `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the state bucket itself · `user_data.sh.tftpl` | per stack |
+| `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the alerts topic, its e-mail subscription and policy, the two status-check alarms, the adopted cost-anomaly monitor and subscription · the state bucket itself · `user_data.sh.tftpl` | per stack |
 | `terraform/stacks/edge/` | the zone's eleven records (eight adopted, the three no-mail ones created from code) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · Bot Fight Mode · DNSSEC; the zone is a data lookup | per stack |
 | `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md` · `replace-the-app-host.md`; each written when first exercised (a box rebuild and a restore have not been, so they have none yet) | — |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
@@ -400,11 +418,15 @@ first and re-put right after, then read back.
 - **No key on either host for SOPS.** Values are decrypted on the workstation and
   pushed over ssh; a platform-box recipient that lets the box decrypt its own files
   moves the host-compromise boundary and is an explicit later change.
-- **No host-level alarm on the app host.** The hostnames are watched from outside
-  (the UptimeRobot monitors above, 2026-08-30) and the box's backup has its
-  dead-man's switch; nothing yet watches the instance itself. EC2 status-check
-  alarms with auto-recover and a subscribed recipient are the next observability
-  step, before Docker log rotation and a free-space signal.
+- **No disk signal on either host, and Docker's logs are unbounded.** Neither
+  host has a `daemon.json`, so container logs grow without rotation (read
+  2026-08-30: 70 MB on the box at 16 % of a 78 GB disk, 92 KB on the app host at
+  20 % of 12 GB). Rotation is a Docker restart on the box (every site blinks) and
+  an instance replacement on AWS (it lives in cloud-init), so both wait for the
+  next controlled recreate or patch day; a free-space signal comes with them,
+  shaped like the backup's dead-man (ping only while space is above a threshold).
+  The box's host itself has no alarm beyond the external monitors; netcup offers
+  no status-check equivalent.
 - **Replacing the app host's instance costs minutes of downtime, accepted.** A
   change to `user_data.sh.tftpl` replaces the instance (the data volume is
   re-attached, the Elastic IP moves with it); there is no blue-green or second

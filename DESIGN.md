@@ -52,7 +52,7 @@ Applied to what exists:
 | The single-tenant AWS host's Caddy config (laid down by cloud-init) | platform (`stacks/leave-impact-prod`); the per-project adapter mechanism is extracted there only if that host gains a second tenant |
 | Per-project host backup units (timer + service + the script they run) | platform (`projects/<name>/`) |
 | Cloudflare DNS and edge configuration | platform |
-| AWS resources (instance, network, IAM, SSM parameters, OIDC trust, budgets) | platform |
+| AWS resources (instance, network, IAM, SSM parameters, OIDC trust, budgets, alarms) | platform |
 | Terraform state and backends | platform |
 | Application image build, Dockerfile, CI | application |
 | The application's own Compose stack (steam-lens app; the Frappe bench stack) | application |
@@ -355,8 +355,10 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
   hostname first — in place 2026-08-30 (ARCHITECTURE, "Set by hand"); it also
   answered whether Bot Fight Mode challenges machine clients: it does not, for
   this one; then EC2 status-check alarms with auto-recover and a subscribed
-  recipient, and Docker log rotation on the next controlled recreate. Nothing here
-  is gated on the application.
+  recipient — in place 2026-08-30, one SNS topic carrying the alarms, the budget
+  and the adopted cost-anomaly subscription (ARCHITECTURE, "An alert"); Docker log
+  rotation and a free-space signal still wait for the next controlled recreate.
+  Nothing here is gated on the application.
 - **The playbook against the live box, in two steps**: a `--check --diff` run
   first, its differences classified (intended, unintended, not representable in
   check mode) and recorded as summaries — done 2026-08-30 (README, evidence table);

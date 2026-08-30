@@ -1,5 +1,5 @@
 variable "alert_email" {
-  description = "Recipient of budget and anomaly alerts."
+  description = "Recipient of every alert: budget thresholds, cost anomalies, the app host's status-check alarms (via the alerts topic)."
   type        = string
 }
 
