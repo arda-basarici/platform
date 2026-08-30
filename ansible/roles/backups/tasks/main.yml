@@ -1,7 +1,9 @@
 # projects/steamlens/README.md "Backups", the platform's side: the two tools,
 # the tenant's runtime directory, the units from the checkout, the timer.
-# The secret (backup.env) is pushed out-of-band per SECRETS.md and the unit
-# tolerates its absence; the Drive OAuth is manual and only verified here.
+# The secret (backup.env) is pushed out-of-band per SECRETS.md and the units
+# tolerate its absence; the Drive OAuth is manual and only verified here. The
+# monthly restore check (restore-check.sh, its service and timer) rides the
+# same loops: same user, same env file, same remote.
 
 - name: Install sqlite3 and rclone
   ansible.builtin.apt:
@@ -22,10 +24,13 @@
     group: "{{ ansible_user }}"
     mode: "0750"
 
-- name: Make backup.sh executable
+- name: Make the tenant's scripts executable
   ansible.builtin.file:
-    path: /srv/platform/projects/steamlens/backup.sh
+    path: "/srv/platform/projects/steamlens/{{ item }}"
     mode: "0755"
+  loop:
+    - backup.sh
+    - restore-check.sh
 
 # root-owned, as every unit the play installs (roles/firewall says why).
 - name: Install the backup units from the checkout
@@ -39,6 +44,8 @@
   loop:
     - steamlens-backup.service
     - steamlens-backup.timer
+    - steamlens-restore-check.service
+    - steamlens-restore-check.timer
   notify: Reload systemd
 
 # The unit in the checkout names the box's login user; the login user of any
@@ -46,30 +53,35 @@
 # the same shape the firewall role uses for the uplink name. Written on every
 # host, the box included: the effective value is then always the inventory's,
 # never "whatever the checkout says", and verify.sh reads it back.
-- name: Own the drop-in directory for the backup service
+- name: Own the drop-in directories for the tenant's services
   ansible.builtin.file:
-    path: /etc/systemd/system/steamlens-backup.service.d
+    path: "/etc/systemd/system/{{ item }}.d"
     state: directory
     mode: "0755"
+  loop: "{{ backups_steamlens_services }}"
 
-- name: Run the backup service as the inventory's login user
+- name: Run the tenant's services as the inventory's login user
   ansible.builtin.copy:
-    dest: /etc/systemd/system/steamlens-backup.service.d/user.conf
+    dest: "/etc/systemd/system/{{ item }}.d/user.conf"
     content: |
       # Written by the platform play (roles/backups); the login user from the inventory.
       [Service]
       User={{ ansible_user }}
     mode: "0644"
+  loop: "{{ backups_steamlens_services }}"
   notify: Reload systemd
 
 - name: Reload systemd before enabling the timer
   ansible.builtin.meta: flush_handlers
 
-- name: Enable the nightly timer
+- name: Enable the nightly backup and the monthly restore-check timers
   ansible.builtin.systemd:
-    name: steamlens-backup.timer
+    name: "{{ item }}"
     enabled: true
     state: started
+  loop:
+    - steamlens-backup.timer
+    - steamlens-restore-check.timer
 
 # A read, so it runs in check mode too (roles/firewall's chain read says why).
 - name: Look for the rclone remote "gdrive" as the login user

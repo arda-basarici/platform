@@ -51,6 +51,9 @@ check "only caddy publishes a port" "box-proxy-caddy-1" "$(docker ps --format '{
 check "steamlens-backup.service User=" "$(stat -c %U /etc/platform/steamlens)" "$(systemctl show steamlens-backup.service -p User --value)"
 check "steamlens-backup.timer enabled" "enabled" "$(systemctl is-enabled steamlens-backup.timer 2>/dev/null)"
 check "steamlens-backup.timer armed"   "1" "$(systemctl list-timers steamlens-backup.timer --all --no-legend | grep -c steamlens-backup)"
+check "steamlens-restore-check.service User=" "$(stat -c %U /etc/platform/steamlens)" "$(systemctl show steamlens-restore-check.service -p User --value)"
+check "steamlens-restore-check.timer enabled" "enabled" "$(systemctl is-enabled steamlens-restore-check.timer 2>/dev/null)"
+check "steamlens-restore-check.timer armed"   "1" "$(systemctl list-timers steamlens-restore-check.timer --all --no-legend | grep -c steamlens-restore-check)"
 check "/etc/platform/steamlens 0750"   "750" "$(stat -c %a /etc/platform/steamlens 2>/dev/null)"
 check "sqlite3 + rclone present"       "0" "$(command -v sqlite3 >/dev/null && command -v rclone >/dev/null; echo $?)"
 

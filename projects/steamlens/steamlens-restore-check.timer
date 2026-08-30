@@ -1,0 +1,12 @@
+# First of the month at 04:30 box-local: an hour after that night's backup,
+# so the object it restores is the newest by construction. Persistent runs a
+# missed check at the next boot.
+[Unit]
+Description=steamlens monthly restore check timer
+
+[Timer]
+OnCalendar=*-*-01 04:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

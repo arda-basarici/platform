@@ -1,0 +1,17 @@
+# The oneshot the restore-check timer fires; runnable by hand for a verified
+# first run: systemctl start steamlens-restore-check.service
+[Unit]
+Description=steamlens monthly backup restore check
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# The login user: owns the store, the rclone remote config and the env file.
+# The live box's value for the hand install; the play overrides it with the
+# inventory's login user in a drop-in, as it does for the backup service.
+User=arda
+# RESTORE_PING_URL shares the backup's env file (one tenant, one file);
+# tolerated absent, and the unpinged monthly check then raises the alert.
+EnvironmentFile=-/etc/platform/steamlens/backup.env
+ExecStart=/srv/platform/projects/steamlens/restore-check.sh

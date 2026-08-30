@@ -58,13 +58,13 @@ jobs:
       # -platform=linux_amd64` on the laptop before this runner can init it
       # (first run, 2026-08-27, failed on a Windows-only lock).
       # The shell that runs as root on the box (firewall.sh), as the login user
-      # on a timer (backup.sh), and as the acceptance test (verify.sh). The
-      # image is pinned by digest, like the actions by SHA. `-S style` is the
+      # on timers (backup.sh, restore-check.sh), and as the acceptance test
+      # (verify.sh). The image is pinned by digest, like the actions by SHA. `-S style` is the
       # strictest level: a finding is fixed or annotated in place with its why,
       # never silenced globally.
       - name: shellcheck (the scripts a host runs)
         run: |
-          docker run --rm -v "$PWD:/repo" -w /repo             koalaman/shellcheck@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb             -S style box/firewall.sh projects/steamlens/backup.sh ansible/verify.sh
+          docker run --rm -v "$PWD:/repo" -w /repo             koalaman/shellcheck@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb             -S style box/firewall.sh projects/steamlens/backup.sh projects/steamlens/restore-check.sh ansible/verify.sh
 
       # cloud-init is a Terraform template; `validate` checks the HCL around it,
       # not the shell inside it. Render it with the real renderer (`templatefile`

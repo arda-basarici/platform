@@ -5,3 +5,8 @@
 # should (the real token stays off it): its local inventory sets this false,
 # and the check becomes a printed warning.
 backups_require_remote: true
+
+# The tenant's oneshot services; each gets the login-user drop-in (tasks say why).
+backups_steamlens_services:
+  - steamlens-backup.service
+  - steamlens-restore-check.service
