@@ -17,12 +17,12 @@ delete them with the last instance.
 
 ```powershell
 $env:AWS_PROFILE = "leave-impact"
-# Debian 12 (bookworm) amd64, the official image in eu-central-1 as of 2026-08-28.
-# The live box runs Debian 13 (trixie): the next drill should launch a trixie image,
-# so the proof host and the described host share a major (found 2026-08-30, when the
-# box's image turned out to ship no gnupg while this one did).
+# Debian 13 (trixie) amd64, the official image in eu-central-1 as of 2026-08-30 -
+# the proof host shares the live box's major. (The 2026-08-28 runs used Debian 12,
+# whose image shipped gnupg the box's Debian 13 lacks - found at the check-mode
+# comparison; the rebuild drill ran on trixie.)
 aws ec2 run-instances --region eu-central-1 `
-  --image-id ami-0e63e247af0c8ff56 --instance-type t3.micro `
+  --image-id ami-08f7904f69cf752b2 --instance-type t3.micro `
   --key-name ansible-throwaway --security-group-ids <sg-id> `
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=ansible-throwaway}]' `
   --query 'Instances[0].InstanceId' --output text
