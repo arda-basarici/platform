@@ -411,7 +411,8 @@ first and re-put right after, then read back.
   that hand-applying it is the riskier path).
 - **No box-rebuild or restore runbook.** Runbooks are written when first exercised;
   neither has been. The pieces exist (the play, the backup README's restore
-  procedure); the end-to-end drill has not run.
+  procedure); the backup itself was restored and compared by hand on 2026-08-30
+  (README, "Proven"), but the swap-in and the end-to-end drill have not run.
 - **Traffic evidence is a 24-hour window.** Security analytics on the free plan keep
   a day; a decision that needs traffic evidence (widening the exploit-path rule,
   moving the rate-limit threshold) reads that window on the day, not a history.

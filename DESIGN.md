@@ -367,8 +367,9 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
 - **Evidence as committed record, not narration**: dated summaries of the zero-diff
   plans, the `verify.sh` passes and the check-mode outcome, never raw plan or
   transcript output, which carries topology.
-- **The rebuild-and-restore drill**, once the restore of the SteamLens backup has
-  been exercised by hand: blank host → play → `verify.sh` → the application via its
+- **The rebuild-and-restore drill**, now that the restore of the SteamLens backup
+  has been exercised by hand (2026-08-30, read-only, same host; a monthly timer
+  repeating that check is the next step): blank host → play → `verify.sh` → the application via its
   own deploy path → a real restore, timed; its runbook written during it. The
   strongest evidence this repository can add.
 - **Per-tenant proxy networks** (one per tenant, Caddy joining all, each tenant

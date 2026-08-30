@@ -104,6 +104,15 @@ sqlite3 "file:/srv/steamlens/data/serve.db?mode=ro" \
 rm /tmp/restore.db
 ```
 
+Run on 2026-08-30 against that morning's object: `integrity_check` ok, 30.7 MB,
+and every count in the live store one day of writes above the backup's
+(`classify_cache` 2 196 → 2 252, `reviews` 21 135 → 21 684, `mentions` 29 878 →
+30 453, `reports` 43 → 44); Drive held exactly 7 dailies and 4 Sunday weeklies.
+The nightly cadence is also the recovery point: a real restore loses up to one
+day, which the box's rate of writes (≈550 reviews/day that week) puts a number
+on. Counting more than one table matters: a cache that fills and a ledger that
+grows drift differently, so a match on one column proves less than it looks.
+
 ### Restoring for real (disaster runbook)
 
 ```sh
