@@ -16,7 +16,7 @@ under `/srv/steamlens/`, `deploy.sh`, and the application's own secrets.
 | request-body cap 16KB, the security-header set, immutable caching for `/static/*` | platform, in `sites.caddy`; each explained in place | the application relies on the cap sitting in front of it |
 | `X-Forwarded-For` = the one verified visitor IP (replaced, not appended) | platform | the application's rate-limit gate reads the last entry |
 | durable state: `/srv/steamlens/data/serve.db` (SQLite, WAL) | application | `backup.sh` |
-| `BACKUP_PING_URL` | platform (this directory's SOPS file) | `steamlens-backup.service` |
+| `BACKUP_PING_URL`, `RESTORE_PING_URL` | platform (this directory's SOPS file) | `steamlens-backup.service`, `steamlens-restore-check.service` |
 
 A rename on either side is a contract change and edits both READMEs.
 
@@ -28,7 +28,10 @@ A rename on either side is a contract change and edits both READMEs.
 | `backup.sh` | runs from the checkout, `/srv/platform/projects/steamlens/backup.sh` | snapshot, verify, ship, prune, ping |
 | `steamlens-backup.service` | `/etc/systemd/system/steamlens-backup.service` | the oneshot the timer fires |
 | `steamlens-backup.timer` | `/etc/systemd/system/steamlens-backup.timer` | 03:30 box-local, `Persistent=true` |
-| `backup.enc.env` | decrypted to `/etc/platform/steamlens/backup.env` (0600) | `BACKUP_PING_URL` |
+| `restore-check.sh` | runs from the checkout | monthly: restore the newest backup, verify, compare with the live store, ping |
+| `steamlens-restore-check.service` | `/etc/systemd/system/steamlens-restore-check.service` | the oneshot the restore-check timer fires |
+| `steamlens-restore-check.timer` | `/etc/systemd/system/steamlens-restore-check.timer` | first of the month 04:30 box-local, `Persistent=true` |
+| `backup.enc.env` | decrypted to `/etc/platform/steamlens/backup.env` (0600) | `BACKUP_PING_URL`, `RESTORE_PING_URL` |
 
 The unit files carry the tenant's name because unit names are host-global;
 two tenants' `backup.timer` would collide in `/etc/systemd/system/`.
@@ -112,6 +115,27 @@ The nightly cadence is also the recovery point: a real restore loses up to one
 day, which the box's rate of writes (≈550 reviews/day that week) puts a number
 on. Counting more than one table matters: a cache that fills and a ledger that
 grows drift differently, so a match on one column proves less than it looks.
+
+### The monthly restore check
+
+`restore-check.sh` is that hand check as a timer: on the first of the month,
+an hour after the night's backup, it pulls the newest daily object, runs
+`integrity_check`, counts the same four tables in the restored file and in the
+live store (opened read-only), and passes when the object is at most two days
+old and every live count is at least the backup's (a legitimate prune in the
+application would fail it; that is a read worth having). It pings a second
+healthchecks.io check only on a pass, so a diverged or stale backup surfaces
+the way a missed backup does: as silence. The live store is never swapped;
+"Restoring for real" below stays a human's run.
+
+Setup, once, after the backup's: a check at healthchecks.io on the timer's own
+OnCalendar expression (`*-*-01 04:30:00`, the box's time zone, grace 6 h); its
+ping URL as `RESTORE_PING_URL` in `backup.enc.env`, pushed as step 4 above;
+the two units installed as step 5 does (`chmod +x` the script: a Windows
+checkout may drop the mode bit, the play sets it); a hand `systemctl start
+steamlens-restore-check.service` as the first run. First run 2026-08-30 20:27:
+`restore check ok: serve-2026-08-30.db.gz (0d old, 30687232 bytes) integrity
+ok; … backup 2196|21135|29878|43 live 2252|21684|30453|44`.
 
 ### Restoring for real (disaster runbook)
 

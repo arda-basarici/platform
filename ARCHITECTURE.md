@@ -343,7 +343,7 @@ run, from the checkout, knows that tenant's data.
 | `box/firewall.sh`, `box/box-firewall.service` | the DOCKER-USER origin-only chain, applied each boot before Docker; the uplink from `IFACE` (default `eth0`) | slow |
 | `box/README.md` | the provisioning + hardening runbook the play transcribes; still the reference for the manual origin-pair step (the Drive OAuth is the steamlens adapter README's) | slow |
 | `ansible/` | `site.yml`, the five roles, `verify.sh`, `ansible.cfg`, the example inventory | slow |
-| `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `backup.enc.env` (`BACKUP_PING_URL`) · README (the contract values, the backup setup and the restore procedure) | fast |
+| `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `restore-check.sh` · `steamlens-restore-check.service` · `steamlens-restore-check.timer` (monthly, read-only) · `backup.enc.env` (`BACKUP_PING_URL`, `RESTORE_PING_URL`) · README (the contract values, the backup setup, the restore check and the restore procedure) | fast |
 | `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
 | `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the alerts topic, its e-mail subscription and policy, the two status-check alarms, the adopted cost-anomaly monitor and subscription · the state bucket itself · `user_data.sh.tftpl` | per stack |
 | `terraform/stacks/edge/` | the zone's eleven records (eight adopted, the three no-mail ones created from code) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · Bot Fight Mode · DNSSEC; the zone is a data lookup | per stack |
@@ -411,8 +411,9 @@ first and re-put right after, then read back.
   that hand-applying it is the riskier path).
 - **No box-rebuild or restore runbook.** Runbooks are written when first exercised;
   neither has been. The pieces exist (the play, the backup README's restore
-  procedure); the backup itself was restored and compared by hand on 2026-08-30
-  (README, "Proven"), but the swap-in and the end-to-end drill have not run.
+  procedure); the backup itself was restored and compared on 2026-08-30, by hand
+  and then by the monthly timer that repeats it (README, "Proven"), but the
+  swap-in and the end-to-end drill have not run.
 - **Traffic evidence is a 24-hour window.** Security analytics on the free plan keep
   a day; a decision that needs traffic evidence (widening the exploit-path rule,
   moving the rate-limit threshold) reads that window on the day, not a history.
