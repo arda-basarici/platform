@@ -95,7 +95,13 @@ through from whichever origin layer set them.
 
 **An application deploy.** Two shapes, both gated by a GitHub `production`
 environment with a required reviewer, both shipping an image tagged by the exact
-commit CI tested:
+commit CI tested. The gate lives in GitHub's settings, not in this tree, so it is
+read back on a date rather than assumed: on 2026-08-30 (`gh api …/environments/production`)
+the leave-impact environment had the required reviewer and a deployment-branch policy
+naming `main` only — the two facts the deploy role's trust (`deploy.tf`) relies on;
+the SteamLens environment had the reviewer and no branch policy (noted to that
+project). Frappe's own login brake (consecutive-failure lockout) was read the same day
+on both sites and is on; its values are the application's, not recorded here:
 
 ```mermaid
 %%{init: {"flowchart": {"diagramPadding": 150}}}%%
@@ -209,7 +215,14 @@ these appear in code until one is changed from code.
 Two account-level notifications, both e-mail: Certificate Transparency Monitoring (a
 certificate for the domain issued by any CA other than Cloudflare's own) and the
 Universal SSL alert (issuance, renewal, validation failures); account scope sits
-outside both zone tokens, and two alert toggles do not justify a wider one. The
+outside both zone tokens, and two alert toggles do not justify a wider one. Four
+UptimeRobot monitors (free tier, one account, e-mail alerts): `steamlens` as an HTTP
+check on `/healthz` since 2026-08-10, and since 2026-08-30 keyword checks that must
+find the upstream's own body — `pong` from Frappe's `/api/method/ping` on `hr` and
+`hr-w1`, the hello page's name on `leave-agent` — every 5 minutes; a keyword
+distinguishes "the upstream answered" from "Cloudflare answered something". They
+are also the standing Bot Fight Mode observation: a machine client passing every
+check, 20 days on one hostname when the other three were added. The
 zone's `security.txt` (RFC 9116: the contact mailbox, languages en/tr, expires
 2027-08-29 and must be renewed before then; served by Cloudflare at
 `/.well-known/security.txt` on the proxied hosts only; the provider has no resource
@@ -387,11 +400,11 @@ first and re-put right after, then read back.
 - **No key on either host for SOPS.** Values are decrypted on the workstation and
   pushed over ssh; a platform-box recipient that lets the box decrypt its own files
   moves the host-compromise boundary and is an explicit later change.
-- **No host-up signal on either host.** The box's only alert is the backup
-  dead-man's switch (a nightly silence, not a liveness check); the app host has
-  none. The first observability step is one external HTTPS monitor per hostname,
-  planned before anything else is built on the hosts; EC2 status-check alarms with
-  a recipient follow it.
+- **No host-level alarm on the app host.** The hostnames are watched from outside
+  (the UptimeRobot monitors above, 2026-08-30) and the box's backup has its
+  dead-man's switch; nothing yet watches the instance itself. EC2 status-check
+  alarms with auto-recover and a subscribed recipient are the next observability
+  step, before Docker log rotation and a free-space signal.
 - **Replacing the app host's instance costs minutes of downtime, accepted.** A
   change to `user_data.sh.tftpl` replaces the instance (the data volume is
   re-attached, the Elastic IP moves with it); there is no blue-green or second

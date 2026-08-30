@@ -215,7 +215,7 @@ traffic evidence is a guess, and the free plan's analytics keep one day of it.
 | a steam-lens Terraform stack | steam-lens acquires cloud resources | its API-managed pieces (the Cloudflare zone) are `edge`, not a per-project stack |
 | `aws-foundation` (shared AWS: the OIDC provider, shared buckets) | a second AWS stack consumes the same resource | one consumer today |
 | a `github` stack (environments, repository secrets) | there is a reason to manage them from code | none yet |
-| a paid Cloudflare plan | an automated client of a proxied hostname needs an exception from Bot Fight Mode (Super Bot Fight Mode is the first tier with one) | every machine client has passed so far; "more features" is not a trigger |
+| a paid Cloudflare plan | an automated client of a proxied hostname needs an exception from Bot Fight Mode (Super Bot Fight Mode is the first tier with one) | every machine client has passed so far — the external monitors included (read 2026-08-30: four hostnames, keyword checks matching the upstream body on every check, one of them for 20 days); "more features" is not a trigger |
 | edge-wide response headers (a `http_response_headers_transform` ruleset) | a header every tenant should carry that the origins do not set | `nosniff` rides on the HSTS setting; `X-Frame-Options` / `Permissions-Policy` over Frappe untested; the tenant stanzas set their own |
 | Authenticated Origin Pulls (mTLS edge → origin) | a second control on origin reachability is wanted | both origins already admit Cloudflare ranges only; defense in depth, not a hole |
 | Cloudflare Access in front of `hr-w1` | its own design step | it adds a service-to-service trust boundary (the leave agent's machine path needs a service token), not a browser login toggle |
@@ -352,10 +352,11 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
 - **The runbooks not yet written** (box rebuild, restore, instance replacement on
   the app host): written the first time each is exercised, never ahead of it.
 - **A host-up signal, then minimal observability**: one external HTTPS monitor per
-  hostname first (it also answers whether Bot Fight Mode challenges machine
-  clients, the paid-plan trigger); then EC2 status-check alarms with auto-recover
-  and a subscribed recipient, and Docker log rotation on the next controlled
-  recreate. Nothing here is gated on the application.
+  hostname first — in place 2026-08-30 (ARCHITECTURE, "Set by hand"); it also
+  answered whether Bot Fight Mode challenges machine clients: it does not, for
+  this one; then EC2 status-check alarms with auto-recover and a subscribed
+  recipient, and Docker log rotation on the next controlled recreate. Nothing here
+  is gated on the application.
 - **The playbook against the live box, in two steps**: a `--check --diff` run
   first, its differences classified (intended, unintended, not representable in
   check mode) and recorded as summaries — done 2026-08-30 (README, evidence table);
