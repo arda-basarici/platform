@@ -27,8 +27,9 @@ supporting the agent is Terraform: what existed was adopted or moved on zero-dif
 plans, and the edge hardening that followed was applied from code; the VPS is
 rebuildable from a blank host by a five-role Ansible play, proven on a fresh one. The
 honest caveats: a single operator applies from a laptop, the live VPS was built by
-the runbook the play transcribes and has not yet been replayed by it, and only one
-of three databases has a backup.
+the runbook the play transcribes and has not yet been replayed by it (compared in
+check mode on 2026-08-30: ten differences, each explained), and only one of three
+databases has a backup.
 
 *Solo: the design, the extraction under production traffic, the imports, the
 playbook, the secrets policy. Extracted 2026-08-26 to 2026-08-28 from a running
@@ -76,7 +77,7 @@ flowchart TD
 | The edge: every record of the zone, the deliberately set settings, the two security rulesets, bot control, DNSSEC | `terraform/stacks/edge` | in code since 2026-08-28; the zone itself is a lookup, never managed |
 | The AWS host the agent runs on: network, security group, instance role, instance + data volume, the GitHub OIDC deploy role, the parameter *names*, the budget, the state bucket | `terraform/stacks/leave-impact-prod` | moved from the agent's repository 2026-08-27, zero-diff |
 | The box's shared layer: the proxy stack, the global Caddyfile, the origin-only firewall, the runbook | `box/` | serving from this checkout since 2026-08-27 |
-| The box from a blank host: five roles in dependency order + the acceptance script | `ansible/` | passes on a blank host (2026-08-28); the live box not yet replayed |
+| The box from a blank host: five roles in dependency order + the acceptance script | `ansible/` | passes on a blank host (2026-08-28); compared against the live box in check mode (2026-08-30, ten differences, all classified), not yet replayed |
 | Per-tenant adapters: site stanzas, backup units, the contract each tenant and the platform agree on | `projects/<name>/` | two tenants |
 | The secrets policy: ownership, classes, stores by workload identity, recovery | `SECRETS.md`, `.sops.yaml` | the exact inventory stays private |
 | Runbooks, written when first exercised | `runbooks/` | add-a-tenant · the Ansible test host · replace the app host |
@@ -89,6 +90,8 @@ flowchart TD
 | The hand-made edge is fully described by code | every import (8 records, 3 settings, 2 rulesets, bot control) landed as `N to import, 0/0/0`, then `No changes`; what followed was created from code (the three no-mail records, the TLS 1.2 floor, HSTS, DNSSEC) and verified live (a TLS 1.0 handshake refused; the zone signed at Cloudflare, its DS record not yet at the `.dev` registry when last read, 2026-08-29) | only settings that were set on purpose entered code; Cloudflare's defaults stay unmanaged by design |
 | The production secret values in Parameter Store never enter Terraform state | proven on a disposable SSM parameter (`state pull` after an out-of-band overwrite: the marker absent, `value` empty), then applied to the three production parameters | before the migration the state *did* hold the origin key; the old versions were purged and a lifecycle rule now expires them |
 | The box is rebuildable from the repository | a blank Debian 12 cloud host reached a passing `verify.sh` (sshd key-only, ufw 22 only, the Cloudflare-only chain, the proxy answering every hostname) from the play alone | the live box has not been replayed; a 502 is the pass on a host with no application |
+| The live box is what the play describes | `--check --diff` against the live host (2026-08-30, at `379cb50`): ten differences, all classified as transcription — the hand build's looser file modes (`0775` scripts, `0664` unit files owned by the login user; the play sets `0755` / root-owned `0644`), the sshd drop-in and the ufw allowance spelled differently for the same effective state, the backup-user drop-in the play had introduced two days earlier, one unit comment newer in the checkout. Then `verify.sh` on the live box: 23/23 PASS | check mode cannot compare `command` tasks (compose up, ufw enable), so "matches the play" waits for the replay and a second `changed=0` run. The comparison itself fixed three role gaps: `gnupg` missing from the prerequisites (the box's Debian 13 image ships none, the Debian 12 test image did), and two read-only `command` tasks skipped in check mode whose guards then failed |
+| Both stacks stay zero-diff | dated plans at `379cb50`, 2026-08-30: leave-impact-prod `No changes`; edge one in-place change, the DNSSEC `status pending → active` that waits on the registry's DS record | laptop-side, on demand |
 | Adding a tenant changes no shared configuration | a tenant is one directory under `projects/` and one `caddy reload`; Caddy validates before swapping, so a broken stanza fails closed | Caddy's `import` takes one wildcard, which is why a tenant's sites live in one file |
 | A deploy of the box layer is a commit hash | the box runs the proxy from a `git pull --ff-only` checkout; `git rev-parse HEAD` there is the deployed configuration | learned the hard way: a single-file bind mount pins the inode, and a pull replaced the file underneath it |
 | The AWS deploy path holds no long-lived credential | GitHub OIDC → STS into a role whose trust names one repository's `production` environment, whose only *write* power is `ssm:SendCommand` on instances tagged for the app (the rest is finding the host and reading the command's outcome) | the SteamLens path still holds one secret: a forced-command ssh key that can run one script |

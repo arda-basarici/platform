@@ -27,11 +27,14 @@
     path: /srv/platform/projects/steamlens/backup.sh
     mode: "0755"
 
+# root-owned, as every unit the play installs (roles/firewall says why).
 - name: Install the backup units from the checkout
   ansible.builtin.copy:
     remote_src: true
     src: "/srv/platform/projects/steamlens/{{ item }}"
     dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
     mode: "0644"
   loop:
     - steamlens-backup.service
@@ -68,11 +71,13 @@
     enabled: true
     state: started
 
+# A read, so it runs in check mode too (roles/firewall's chain read says why).
 - name: Look for the rclone remote "gdrive" as the login user
   ansible.builtin.command: rclone listremotes
   become_user: "{{ ansible_user }}"
   register: rclone_remotes
   changed_when: false
+  check_mode: false
 
 - name: Fail when the remote is missing (the box)
   ansible.builtin.fail:

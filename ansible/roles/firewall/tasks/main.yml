@@ -27,11 +27,16 @@
     path: /srv/platform/box/firewall.sh
     mode: "0755"
 
+# root-owned on purpose: a unit that runs as root at boot must not be writable
+# by the login user (the hand build left it arda:arda 0664 via `cp` under
+# umask 002 — read at the live --check run, 2026-08-30).
 - name: Install box-firewall.service
   ansible.builtin.copy:
     remote_src: true
     src: /srv/platform/box/box-firewall.service
     dest: /etc/systemd/system/box-firewall.service
+    owner: root
+    group: root
     mode: "0644"
   notify: Reload systemd
 
@@ -67,10 +72,14 @@
     enabled: true
     state: started
 
+# A read, so it runs in check mode too: skipped there, the assert below would
+# fail on an empty result and report the host wrong (the live --check run,
+# 2026-08-30).
 - name: Read the DOCKER-USER chain
   ansible.builtin.command: iptables -S DOCKER-USER
   register: docker_user_chain
   changed_when: false
+  check_mode: false
 
 - name: Assert the chain ends in a DROP on the uplink
   ansible.builtin.assert:

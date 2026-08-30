@@ -6,11 +6,12 @@ from a blank host, the repository and state maps, and the seam between platform 
 application. The *why* behind each shape is [DESIGN.md](DESIGN.md)'s (cited by name);
 the pitch is [README.md](README.md)'s. This document describes the system as it runs.
 
-*Snapshot of the running system · last updated 2026-08-29 · the extraction from
+*Snapshot of the running system · last updated 2026-08-30 · the extraction from
 steam-lens complete (the box has served from this checkout since 2026-08-27), both
 Terraform stacks adopted zero-diff (2026-08-27 and 2026-08-28), the box playbook
-proven on a blank host (2026-08-28). The live box has not yet been replayed by the
-playbook; the restraint list at the end carries what is deliberately not done.*
+proven on a blank host (2026-08-28) and compared against the live box in check mode
+(2026-08-30, ten differences, all classified). The live box has not yet been replayed
+by the playbook; the restraint list at the end carries what is deliberately not done.*
 
 ---
 
@@ -258,8 +259,15 @@ a stack's state, terminated after the run). The control node is WSL with a
 dedicated key; the committed inventory is an example, the real one is gitignored,
 and the live box is addressed by its ssh alias so the origin address never enters
 this public repository. The play reached a passing `verify.sh` on a blank host on
-2026-08-28. It has not been run against the live box: that box was built by the
-runbook the play transcribes, and replaying it there is its own ruling.
+2026-08-28. Against the live box it has run in check mode only (2026-08-30: ten
+differences, every one a transcription difference — file modes, the spelling of the
+same sshd and ufw state, the play's own backup-user drop-in); that box was built by
+the runbook the play transcribes, and replaying it there is its own ruling. The
+control node (WSL) holds three things for that: the box key (`~/.ssh/platform-box`),
+the `box` alias in its ssh config, and the Origin CA pair at `~/.platform/certs`,
+which is copied in for a run and removed after — the control node is not a store
+for it. The test host is a Debian 12 image; the box runs Debian 13 (trixie), which
+is where the missing `gnupg` prerequisite surfaced.
 
 ## The box, on disk
 
@@ -365,9 +373,11 @@ first and re-put right after, then read back.
   data worth keeping: the leave-impact agent's first generated world. Until then a
   dump unit protects placeholder data, and its restore drill would drill nothing.
 - **The live box has not been replayed by the playbook.** It was built by the
-  runbook the play transcribes and verified by the same checks; replaying needs the
-  control node's key in the box's `authorized_keys` and a sudo prompt, and is its
-  own ruling. A rebuild would force it.
+  runbook the play transcribes and verified by the same checks. The check-mode
+  comparison ran on 2026-08-30 (ten differences, all explained; `verify.sh` 23/23)
+  and the control node's key is in the box's `authorized_keys` since; the replay
+  itself waits for an operational reason (a rebuild, or a `box/` change large enough
+  that hand-applying it is the riskier path).
 - **No box-rebuild or restore runbook.** Runbooks are written when first exercised;
   neither has been. The pieces exist (the play, the backup README's restore
   procedure); the end-to-end drill has not run.

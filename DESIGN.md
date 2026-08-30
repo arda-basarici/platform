@@ -358,9 +358,9 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
   recreate. Nothing here is gated on the application.
 - **The playbook against the live box, in two steps**: a `--check --diff` run
   first, its differences classified (intended, unintended, not representable in
-  check mode) and recorded as summaries, then the replay itself on an operational
-  reason (a rebuild, or a `box/` change large enough that hand-applying it is the
-  riskier path).
+  check mode) and recorded as summaries — done 2026-08-30 (README, evidence table);
+  then the replay itself on an operational reason (a rebuild, or a `box/` change
+  large enough that hand-applying it is the riskier path).
 - **Evidence as committed record, not narration**: dated summaries of the zero-diff
   plans, the `verify.sh` passes and the check-mode outcome, never raw plan or
   transcript output, which carries topology.

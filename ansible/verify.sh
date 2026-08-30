@@ -18,7 +18,16 @@ sshd_eff=$(sshd -T | grep -Ei '^(passwordauthentication|permitrootlogin|kbdinter
 check "sshd key-only, no root"  "kbdinteractiveauthentication no passwordauthentication no permitrootlogin no " "$sshd_eff"
 check "ufw active"              "Status: active" "$(ufw status | head -1)"
 check "ufw default deny in"     "deny" "$(ufw status verbose | sed -n 's/^Default: \([a-z]*\) (incoming).*/\1/p')"
-check "ufw allows only 22"      "22/tcp" "$(ufw status | awk '$2=="ALLOW" {print $1}' | sed 's/ (v6)//' | sort -u | tr '\n' ' ' | sed 's/ $//')"
+# An allowance may be spelled as a port (`ufw allow 22/tcp`, the README) or as an
+# app profile (`ufw allow OpenSSH`, the live box); both are the same fact, so a
+# profile name resolves to the ports `ufw app info` lists under "Port:".
+ufw_allowed=$(ufw status | awk '$2=="ALLOW" {print $1}' | sed 's/ (v6)//' | sort -u | while read -r rule; do
+    case "$rule" in
+        [0-9]*) echo "$rule" ;;
+        *) ufw app info "$rule" | awk '/^Ports?:/ {f=1; next} f && /^ / {print $1}' ;;
+    esac
+done | sort -u | tr '\n' ' ' | sed 's/ $//')
+check "ufw allows only 22"      "22/tcp" "$ufw_allowed"
 check "apt-daily timers armed"  "2" "$(systemctl list-timers 'apt-daily*' --all --no-legend | grep -c apt-daily)"
 
 # --- Docker

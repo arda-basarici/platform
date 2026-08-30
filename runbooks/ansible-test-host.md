@@ -18,6 +18,9 @@ delete them with the last instance.
 ```powershell
 $env:AWS_PROFILE = "leave-impact"
 # Debian 12 (bookworm) amd64, the official image in eu-central-1 as of 2026-08-28.
+# The live box runs Debian 13 (trixie): the next drill should launch a trixie image,
+# so the proof host and the described host share a major (found 2026-08-30, when the
+# box's image turned out to ship no gnupg while this one did).
 aws ec2 run-instances --region eu-central-1 `
   --image-id ami-0e63e247af0c8ff56 --instance-type t3.micro `
   --key-name ansible-throwaway --security-group-ids <sg-id> `
@@ -57,6 +60,17 @@ chmod 0600 ~/.platform/certs/ardabasarici.dev.key
 
 (`curl -k` in the checks below is what tolerates it; on the box the same path
 holds the Cloudflare-issued pair, copied there by hand per `box/README.md`.)
+
+A run against the **live box** needs the live pair at the same path, or the proxy
+role reports a certificate replacement. Copy it in for the run only: on the box,
+`sudo install` both files into a staging directory owned by the login user; `scp`
+them into `~/.platform/certs`; remove the staging directory; after the run, remove
+the copy and put the test pair back. The control node is not a store for that pair
+(SECRETS: re-issuable, not recoverable). The live box is `box` in WSL's own
+`~/.ssh/config` with the dedicated key `~/.ssh/platform-box` (passphrase-protected;
+`ssh-add` it once per shell), and sudo comes through `--ask-become-pass`. Check
+mode first: `ansible-playbook -i inventory/local.yml site.yml --check --diff
+--ask-become-pass`, every `changed` explained before any real run.
 
 ```sh
 cd /mnt/c/Users/ardab/Desktop/projects/platform/ansible

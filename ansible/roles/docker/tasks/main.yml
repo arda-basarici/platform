@@ -2,12 +2,17 @@
 # from Docker's own apt repository (the distro's lags majors behind), the login
 # user in group docker, and the one shared proxy network every project joins.
 
+# gnupg is not in the README's hand build (curl + tee need no gpg) but the
+# apt_repository module refuses to even compare a `deb` line without a gpg
+# binary; the Debian 12 AMI ships one, the box's Debian 13 image does not
+# (found by the live --check run, 2026-08-30).
 - name: Install the apt prerequisites
   ansible.builtin.apt:
     name:
       - ca-certificates
       - curl
       - git
+      - gnupg
     state: present
     update_cache: true
     cache_valid_time: 3600
