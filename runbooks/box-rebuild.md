@@ -4,10 +4,10 @@ Written during the first rebuild-and-restore drill (2026-08-30): a blank host an
 blank control node taken to SteamLens serving its real review data in about an hour,
 from nothing but the public repositories, the password vault, and the Google account.
 The drill ran against a throwaway EC2 host (`runbooks/ansible-test-host.md` owns that
-scaffolding); a real disaster differs only at the edges — the differences are listed
+scaffolding); a real disaster differs only at the edges; the differences are listed
 at the end.
 
-Measured on the first, unrehearsed run — every fumble included:
+Measured on the first, unrehearsed run, every fumble included:
 
 | Phase | Stamps | Duration |
 |---|---|---|
@@ -18,7 +18,7 @@ Measured on the first, unrehearsed run — every fumble included:
 | **Total, blank → serving restored data** | 22:14:04 → 23:20:45 | **1 h 06 m 41 s** |
 
 A rerun that follows this runbook instead of discovering it should come in well under
-an hour — an estimate, not a measurement, until a second drill stamps it.
+an hour: an estimate, not a measurement, until a second drill stamps it.
 
 ## What a rebuild needs, and what it deliberately does not
 
@@ -29,7 +29,7 @@ anything from the old workstation. That absence is the claim being proven.
 
 One rule throughout: **a drill host never receives production liveness URLs**
 (`BACKUP_PING_URL`, `RESTORE_PING_URL` stay off it). The play arms the backup timers,
-but without the env file they fail without pinging — a drill must not be able to
+but without the env file they fail without pinging; a drill must not be able to
 satisfy production's dead-man for it. For a *real* rebuild the URLs are pushed as the
 steamlens README's step 4, and the dead-man goes quiet on its own with the first
 nightly pass.
@@ -83,7 +83,7 @@ age-keygen -y ~/.config/sops/age/keys.txt
 sops -d ~/steam-lens/deploy/box/secrets.enc.env > /dev/null && echo OK
 ```
 
-Paste the note with Bitwarden's copy button, never a hand selection — the drill's
+Paste the note with Bitwarden's copy button, never a hand selection; the drill's
 first attempt silently lost the leading 15 characters of the key. `age-keygen -y`
 is the check that costs nothing: it must print the workstation recipient recorded in
 `.sops.yaml` (`age15zv…vufr`). The `OK` proves the vault note is a working recovery
@@ -92,7 +92,7 @@ path, which is worth knowing *before* a disaster.
 ## 2. The host, built by the play
 
 Launch (drill: `runbooks/ansible-test-host.md`, with a **Debian 13** image so the
-proof host shares the box's major — this drill used `debian-13-amd64-20260826-2582`;
+proof host shares the box's major; this drill used `debian-13-amd64-20260826-2582`;
 real rebuild: a netcup VPS per `box/README.md`, same play). Inventory per
 `ansible/inventory/example.yml` (`backups_require_remote: false` for a drill host),
 then:
@@ -120,7 +120,7 @@ $SSH 'cd /srv/steamlens && docker compose pull -q && docker compose up -d'
 $SSH 'curl -sk --resolve steamlens.ardabasarici.dev:443:127.0.0.1 https://steamlens.ardabasarici.dev/healthz'
 ```
 
-Fifteen seconds from `pull` to a green `/healthz` in the drill — through Caddy, with
+Fifteen seconds from `pull` to a green `/healthz` in the drill: through Caddy, with
 the app's real hostname, on an empty store. The check runs *on* the host because the
 origin firewall drops non-Cloudflare 443 by design; the full visitor path through
 Cloudflare is untestable on a host no DNS points at, and this runbook does not claim
@@ -130,7 +130,7 @@ monitors become that check.
 ## 4. Drive access, from nothing
 
 The finding this drill exists for: **a fresh `drive.file` authorization with rclone's
-shared client id sees the backups** — Drive scopes access by OAuth *application*, the
+shared client id sees the backups**. Drive scopes access by OAuth *application*, the
 shared client is the application, and the box's dead credential is not needed. The
 2026-08-30 drill listed exactly the 7 dailies + 4 Sunday weeklies and restored from
 one. Two caveats keep this honest: it holds only while rclone's shared client id
@@ -146,15 +146,15 @@ symptom is the backup dead-man firing with an rclone OAuth error in
 
 1. Own OAuth client: a Google Cloud project, Drive API enabled, consent screen
    External with `drive.file` as the only scope, credentials of type Desktop app.
-   PUBLISH the consent screen to production — in Testing every grant expires after
+   PUBLISH the consent screen to production: in Testing every grant expires after
    seven days; publishing asks for a homepage and a privacy-policy URL, a
    one-paragraph page on the domain suffices. Client id and secret go to the vault,
    never the repository.
 2. On the control node: `rclone config create gdrive drive scope drive.file
    client_id … client_secret …`, authorize in the browser, ship the whole config
-   as below. The new client sees NONE of the objects the shared client wrote —
+   as below. The new client sees NONE of the objects the shared client wrote:
    `drive.file` visibility is bound to the creating client id (rclone's
-   maintainers confirmed it on the forum) — so `lsf` listing nothing is expected
+   maintainers confirmed it on the forum), so `lsf` listing nothing is expected
    here, not a failure.
 3. On the host: `systemctl start steamlens-backup.service` by hand. The first upload
    under the new client is the newest snapshot, and from that moment the restore
@@ -163,10 +163,10 @@ symptom is the backup dead-man firing with an rclone OAuth error in
    the web UI after the new stream has produced a scheduled nightly.
 
 Alternative weighed at that point: an S3 bucket replacing Drive (Terraform beside
-the state bucket, rclone's S3 backend with an IAM key) — no OAuth and no clock, at
+the state bucket, rclone's S3 backend with an IAM key), with no OAuth and no clock, at
 the cost of backups and the app host sharing one account.
 
-The OAuth dance that actually works headless — authorize *locally on the control
+The OAuth dance that actually works headless is to authorize *locally on the control
 node*, then ship the whole config (the interactive `config_token>` paste over ssh
 mangles wrapped clipboard lines and burned two attempts; do not use it):
 
@@ -177,7 +177,7 @@ scp -i ~/.ssh/ansible-throwaway ~/.config/rclone/rclone.conf admin@<host-ip>:/ho
 $SSH 'chmod 600 ~/.config/rclone/rclone.conf && rclone lsf gdrive:steamlens-backups/daily/ | head -3'
 ```
 
-This transported token is freshly minted from the recoverable Google account — the
+This transported token is freshly minted from the recoverable Google account; the
 forbidden shortcut was only ever copying the *old box's* credential, which proves
 nothing about surviving its loss.
 
@@ -197,7 +197,7 @@ $SSH 'curl -sk --resolve steamlens.ardabasarici.dev:443:127.0.0.1 https://steaml
   "SELECT (SELECT count(*) FROM classify_cache), (SELECT count(*) FROM reviews), (SELECT count(*) FROM mentions), (SELECT count(*) FROM reports);"'
 ```
 
-The pass is the counts matching the backup object's recorded evidence — the drill's
+The pass is the counts matching the backup object's recorded evidence: the drill's
 `2196|21135|29878|43` matched the same object's hand check and its monthly-timer run
 digit for digit, on a different host, through a different credential. The recovery
 point stays the nightly cadence: up to one day of writes.
@@ -205,11 +205,11 @@ point stays the nightly cadence: up to one day of writes.
 ## 6. Drill teardown
 
 Terminate the instance, delete the security group and key pair with it
-(`ansible-test-host.md`), and `wsl --unregister Ubuntu-26.04` — which destroys the
+(`ansible-test-host.md`), and `wsl --unregister Ubuntu-26.04`, which destroys the
 distro's age-key copy, ssh keys, and the rclone token's only storage. Do **not**
 revoke the rclone grant in the Google account's permissions page: the live box's
 backup token rides the same application grant, and revoking it kills the nightly
-backup. Post-drill rotation of the two app secrets is not routine — only on a
+backup. Post-drill rotation of the two app secrets is not routine, only on a
 concrete reason to distrust the drill host.
 
 ## What a real disaster adds that the drill cannot
@@ -217,7 +217,7 @@ concrete reason to distrust the drill host.
 - The host is a netcup VPS (`box/README.md`), not EC2; the ssh user is `arda`.
 - The Cloudflare Origin CA pair is re-issued in the dashboard, not self-signed.
 - DNS: the proxied records move to the new origin IP (`terraform/stacks/edge`,
-  `records.tf` — one apply).
+  `records.tf`, one apply).
 - The liveness URLs are pushed (steamlens README step 4) and both healthchecks
   checks go green on their own schedule.
 - The CD path is re-armed: `deploy.sh` installed, the forced-command key re-minted,

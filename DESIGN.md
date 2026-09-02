@@ -337,6 +337,28 @@ that shaped the build:
   operation (rebuild automation, import history, recovery drills, CI validation),
   never by decoration.
 
+## Shipped since the extraction
+
+Items that entered the list below as future work and have since run, kept here
+with their dates so that the list holds only what is open:
+
+- **A host-up signal**: one external HTTPS monitor per hostname, in place
+  2026-08-30 (ARCHITECTURE, "Set by hand"); it also answered whether Bot Fight
+  Mode challenges machine clients: it does not, for this one.
+- **EC2 status-check alarms** with auto-recover and a subscribed recipient, in
+  place 2026-08-30: one SNS topic carrying the alarms and the adopted
+  cost-anomaly subscription, the budget's thresholds mailing the same address
+  directly by ruling (ARCHITECTURE, "An alert").
+- **The playbook's check-mode run against the live box**, done 2026-08-30
+  (README, "Proven, not asserted"): the `--check --diff` differences classified
+  (intended, unintended, not representable in check mode) and recorded as
+  summaries.
+- **The rebuild-and-restore drill**, run 2026-08-30 (`runbooks/box-rebuild.md`),
+  once the read-only restore had been exercised on the box by hand and by the
+  monthly timer: blank host and blank control node → play → `verify.sh` → the
+  application via its own deploy path → a real restore, timed at about an hour,
+  the runbook written during it.
+
 ## Future work, by trigger
 
 The "deliberately absent" table above carries the structural triggers. Beyond it:
@@ -357,32 +379,19 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
   The four that exist (add a tenant, the test host, replace the app host, box
   rebuild and restore) came that way; the next ones (a patch day, an Origin CA
   rotation, an edge change) wait for their first run.
-- **A host-up signal, then minimal observability**: one external HTTPS monitor per
-  hostname first — in place 2026-08-30 (ARCHITECTURE, "Set by hand"); it also
-  answered whether Bot Fight Mode challenges machine clients: it does not, for
-  this one; then EC2 status-check alarms with auto-recover and a subscribed
-  recipient — in place 2026-08-30, one SNS topic carrying the alarms and the
-  adopted cost-anomaly subscription, the budget's thresholds mailing the same
-  address directly by ruling (ARCHITECTURE, "An alert"); Docker log
-  rotation and a free-space signal still wait for the next controlled recreate.
-  Nothing here is gated on the application.
-- **The playbook against the live box, in two steps**: a `--check --diff` run
-  first, its differences classified (intended, unintended, not representable in
-  check mode) and recorded as summaries — done 2026-08-30 (README, "Proven, not asserted");
-  then the replay itself, the one open step. It is a pure replay: no play change
-  rides it, check mode is repeated immediately before, and a difference that
-  needs a play fix aborts it — the fix goes through CI and a blank host first, and
-  the replay restarts from its preflight. The live box is never the first proof of
-  a changed play. Done when a second run reports `changed=0`.
+- **Docker log rotation and a free-space signal** on the hosts: at the next
+  controlled recreate; neither is gated on the application.
+- **The replay of the playbook against the live box**, the one open host step
+  after the check-mode run above. It is a pure replay: no play change rides it,
+  check mode is repeated immediately before, and a difference that needs a play
+  fix aborts it; the fix goes through CI and a blank host first, and the replay
+  restarts from its preflight. The live box is never the first proof of a changed
+  play. Done when a second run reports `changed=0`.
 - **Evidence as committed record, not narration**: dated summaries of the zero-diff
   plans, the `verify.sh` passes and the check-mode outcome, never raw plan or
   transcript output, which carries topology.
-- **The rebuild-and-restore drill** — run 2026-08-30 (`runbooks/box-rebuild.md`),
-  once the read-only restore had been exercised on the box by hand and by the
-  monthly timer: blank host and blank control node → play → `verify.sh` → the
-  application via its own deploy path → a real restore, timed at about an hour,
-  the runbook written during it. A second, rehearsed run is the next evidence,
-  before any sub-hour claim.
+- **A second, rehearsed rebuild-and-restore drill**: the next evidence after the
+  2026-08-30 run, before any sub-hour claim.
 - **Per-tenant proxy networks** (one per tenant, Caddy joining all, each tenant
   only its own; one line per application repository): at the next proxy recreate,
   paired with hardening the Caddy container, since the proxy is the pivot between
