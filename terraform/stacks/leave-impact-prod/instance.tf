@@ -112,6 +112,14 @@ resource "aws_instance" "app" {
     encrypted   = true
   }
 
+  # The rendered template is the instance's identity: Terraform diffs the whole
+  # string, comments included, and the flag below turns any diff into a host
+  # replacement (runbooks/replace-the-app-host.md) rather than a stop-and-start.
+  # So the template's text is frozen at what the live host booted with, and
+  # wording about it goes here. Two glosses the template's comments compress:
+  # "(DESIGN)" is the leave-impact-agent repository's DESIGN, and "compose.yaml in
+  # the repo" is the proxy's compose.yaml the script itself writes. A change under
+  # this stack is planned before it is committed, even when it reads as docs.
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     app_hostname           = var.app_hostname
     cloudflare_ipv4_ranges = var.cloudflare_ipv4_ranges

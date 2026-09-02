@@ -2,8 +2,7 @@
 # First-boot configuration (cloud-init user data) for the application host.
 # Runs once per instance; idempotent where a rerun could happen (mount, files).
 # Log: /var/log/leave-agent-boot.log — read it over an SSM session when the
-# site does not answer. This is the host laid down by cloud-init until the
-# application exists (the leave-impact-agent repository's DESIGN); it
+# site does not answer. This is cloud-init "until the app exists" (DESIGN); it
 # lays the host down — Docker, the data volume, the proxy stack, the shared
 # `web` network. The application stack is the deploy job's (deploy/instance/
 # deploy.sh), never this script's: a replaced instance serves the hello until
@@ -62,8 +61,7 @@ unset CERT KEY
 umask 022
 
 # --- The shared `web` network and the proxy stack -----------------------------
-# The proxy owns `web` (the proxy's compose.yaml, written below, declares it
-# external); every
+# The proxy owns `web` (compose.yaml in the repo declares it external); every
 # application stack joins it and publishes nothing to the host. Caddy is the
 # same proxy the box runs, so the two hosts read alike. `trusted_proxies` is
 # rendered from the same Terraform variable as the security group's ingress
