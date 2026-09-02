@@ -59,11 +59,13 @@ sudo apt-get install -y sqlite3 rclone
 #    (backup.sh addresses it by that name), storage type `drive`, scope
 #    `drive.file` — the token can then only touch files rclone itself
 #    created; a compromised box can burn the backups, never read the Drive.
-#    The remote rides rclone's shared client id today; that id is announced to
-#    retire during 2026, so an own OAuth client (Desktop app, Drive API, the
-#    same drive.file scope) is the planned replacement as of 2026-09-02 — this
-#    step is rewritten when the migration lands. Known trap: an OAuth app left
-#    in "testing" status expires its refresh token every 7 days.
+#    The remote rides rclone's shared client id today. Google will start
+#    charging rclone for it "later in 2026, following 90 days of notice", and
+#    rclone will disable it before that period ends (forum thread 54005). The
+#    move to an own OAuth client is deferred until the id stops: the nightly
+#    backup then goes silent and the dead-man check raises it; the data is the
+#    account's own files, restorable without rclone. The recipe for that day is
+#    in runbooks/box-rebuild.md, "Drive access" (ruled 2026-09-02).
 #    The box is headless, and the proven path is to authorize on the control
 #    node and ship the whole config (the drill found that pasting a token into
 #    `rclone config` over ssh mangles wrapped lines; runbooks/box-rebuild.md,

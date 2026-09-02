@@ -134,10 +134,37 @@ shared client id sees the backups** — Drive scopes access by OAuth *applicatio
 shared client is the application, and the box's dead credential is not needed. The
 2026-08-30 drill listed exactly the 7 dailies + 4 Sunday weeklies and restored from
 one. Two caveats keep this honest: it holds only while rclone's shared client id
-lives (its retirement is announced for during 2026; as of 2026-09-02 the box still
-rides it, and an own OAuth client for the remote is the planned replacement — this
-section is rewritten when that lands), and the fallback needs no rclone at all:
-download the object in the Drive web UI and `scp` it to the host.
+lives, and the fallback needs no rclone at all: download the object in the Drive
+web UI and `scp` it to the host. The objects are the account's own files, each a
+full snapshot; losing rclone's access loses none of them.
+
+The shared id's end is announced (Google charges for it "later in 2026, following
+90 days of notice"; rclone disables it before the period ends, forum thread 54005)
+and the move to an own client is deferred until it happens (ruled 2026-09-02): the
+symptom is the backup dead-man firing with an rclone OAuth error in
+`journalctl -u steamlens-backup.service` and no "backup ok" line. The recipe then:
+
+1. Own OAuth client: a Google Cloud project, Drive API enabled, consent screen
+   External with `drive.file` as the only scope, credentials of type Desktop app.
+   PUBLISH the consent screen to production — in Testing every grant expires after
+   seven days; publishing asks for a homepage and a privacy-policy URL, a
+   one-paragraph page on the domain suffices. Client id and secret go to the vault,
+   never the repository.
+2. On the control node: `rclone config create gdrive drive scope drive.file
+   client_id … client_secret …`, authorize in the browser, ship the whole config
+   as below. The new client sees NONE of the objects the shared client wrote —
+   `drive.file` visibility is bound to the creating client id (rclone's
+   maintainers confirmed it on the forum) — so `lsf` listing nothing is expected
+   here, not a failure.
+3. On the host: `systemctl start steamlens-backup.service` by hand. The first upload
+   under the new client is the newest snapshot, and from that moment the restore
+   path is whole again; then the restore check by hand, and both healthchecks
+   pings. The old objects stay in Drive, invisible to prune; delete them once in
+   the web UI after the new stream has produced a scheduled nightly.
+
+Alternative weighed at that point: an S3 bucket replacing Drive (Terraform beside
+the state bucket, rclone's S3 backend with an IAM key) — no OAuth and no clock, at
+the cost of backups and the app host sharing one account.
 
 The OAuth dance that actually works headless — authorize *locally on the control
 node*, then ship the whole config (the interactive `config_token>` paste over ssh
