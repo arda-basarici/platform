@@ -40,7 +40,14 @@ check "web network"             "web" "$(docker network ls --filter name=^web$ -
 check "box-firewall enabled"    "enabled" "$(systemctl is-enabled box-firewall.service 2>/dev/null)"
 check "box-firewall applied"    "active"  "$(systemctl is-active box-firewall.service 2>/dev/null)"
 uplink=$(ip route show default | awk '{print $5; exit}')
-check "DOCKER-USER: 443 from Cloudflare" "15" "$(iptables -S DOCKER-USER | grep -- "--ctorigdstport 443" | grep -- "-j RETURN" | grep -c -- "-i $uplink ")"
+# The expected number of Cloudflare allowances is read from the script the unit
+# ran (its ExecStart path), never pinned here: the pinned list has three copies
+# already (scripts/check-cf-ranges.sh keeps them identical) and a fourth would
+# lag them on the next refresh.
+firewall_script=$(systemctl show box-firewall.service -p ExecStart --value 2>/dev/null | sed -n 's/.*path=//p' | sed 's/ .*//' | head -1)
+check "box-firewall script at the unit's ExecStart" "0" "$([ -r "$firewall_script" ]; echo $?)"
+cf_ranges=$(grep '^CF_RANGES_V4=' "$firewall_script" 2>/dev/null | sed 's/^CF_RANGES_V4="//; s/"$//' | wc -w | tr -d ' ')
+check "DOCKER-USER: 443 from Cloudflare" "$cf_ranges" "$(iptables -S DOCKER-USER | grep -- "--ctorigdstport 443" | grep -- "-j RETURN" | grep -c -- "-i $uplink ")"
 check "DOCKER-USER: drop the rest"       "1"  "$(iptables -S DOCKER-USER | grep -c -- "^-A DOCKER-USER -i $uplink -j DROP$")"
 check "DOCKER-USER v6: drop everything"  "1"  "$(ip6tables -S DOCKER-USER | grep -c -- "^-A DOCKER-USER -i $uplink -j DROP$")"
 
