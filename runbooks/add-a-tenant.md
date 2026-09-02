@@ -42,13 +42,22 @@ kept current each time it runs.
    validates first and swaps in place, the running sites are not interrupted. Then verify
    **every** hostname on the box, not only the new one:
    `curl -s -o /dev/null -w '%{http_code}\n' https://<host>/` for each.
+   `ansible/verify.sh` probes each hostname by name: add the new one to its loop
+   in the same commit, or the acceptance a rebuilt box passes no longer covers
+   this tenant.
 5. **Backups, if the platform owns them:** `projects/<name>/backup.sh` plus
    `<name>-backup.service` and `<name>-backup.timer` (unit names are
    host-global, so they carry the tenant's name), installed from the checkout
    into `/etc/systemd/system/`; any secret the backup needs goes in
    `projects/<name>/backup.enc.env` and is pushed to
    `/etc/platform/<name>/backup.env` (the steamlens README shows the flow).
-   Not done until a restore has been verified.
+   The `backups` role knows one tenant today (steamlens's directory, scripts and
+   units by name): a second backed-up tenant extends the play in the same change,
+   so a rebuilt box carries its units too — a unit installed by hand alone is
+   lost at the next rebuild. Not done until a restore has been verified. If the
+   platform does not own the backup, the contract table says so in words (what
+   the durable state is and who backs it up), so the absence reads as a ruling,
+   not an omission.
 6. **The private inventory:** any new secret gets its row (consumer · store ·
    path · rotation · if lost) in the private operational record that
    `SECRETS.md` describes.

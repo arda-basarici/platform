@@ -8,7 +8,7 @@ all:
       ansible_host: box            # ssh alias from ~/.ssh/config
       ansible_user: arda
       ansible_python_interpreter: /usr/bin/python3
-    # A throwaway test host (DESIGN, "The playbook's rulings"): a fresh Debian 12 cloud image.
+    # A throwaway test host (DESIGN, "The playbook's rulings"): a fresh Debian cloud image of the box's major.
     # throwaway:
     #   ansible_host: 203.0.113.10
     #   ansible_user: admin        # the Debian AMI's login user

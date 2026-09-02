@@ -1,8 +1,11 @@
-# Spend guardrails and the host alarms. The budget was created by hand when the account was first set
-# up (2026-08-22, the agent's probe days) and adopted here, so Terraform owns its
-# thresholds from now on.
+# Spend guardrails and the host alarms. The budget was created by hand when the
+# account was first set up (2026-08-22, the agent's first exploratory runs) and
+# adopted here, so Terraform owns its thresholds from now on.
 # $30 is the alarm ceiling, not a target; the 25 % forecast alert is the early
-# warning that a resource was left running.
+# warning that a resource was left running. Its thresholds mail the recipient
+# directly, not through the alerts topic below — deliberate: routing them would
+# need a budgets service principal in the topic policy and its own delivery
+# test, for no second subscriber.
 import {
   to = aws_budgets_budget.monthly
   id = "445743457479:leave-impact-monthly"
@@ -32,11 +35,12 @@ resource "aws_budgets_budget" "monthly" {
   }
 }
 
-# --- One channel for every alert ---------------------------------------------
-# Every automated alert in this account lands on one SNS topic with one e-mail
-# subscriber. The subscription is confirmed by a click in the recipient's mailbox
+# --- One channel for the alarms and the anomaly findings ----------------------
+# The CloudWatch alarms and Cost Anomaly Detection publish to one SNS topic with
+# one e-mail subscriber (the budget above is the one direct-mail exception). The
+# subscription is confirmed by a click in the recipient's mailbox
 # (`PendingConfirmation` until then), which Terraform can neither do nor see —
-# a deliberate out-of-band step, recorded in the README's evidence table.
+# a deliberate out-of-band step, recorded in README, "Proven, not asserted".
 resource "aws_sns_topic" "alerts" {
   name = "leave-impact-alerts"
 }

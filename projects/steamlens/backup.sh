@@ -10,7 +10,7 @@
 #
 # Deliberately excluded: .env (regenerable from the SOPS-encrypted repo copy —
 # and its absence means backups carry zero secrets), Caddyfile/compose (in the
-# repo), Caddy's TLS state (re-minted for free on a rebuilt box).
+# repo), Caddy's TLS state (regenerated for free on a rebuilt box).
 #
 # On success this pings the healthchecks.io dead-man's switch. The alert fires
 # on SILENCE, so every failure mode — this script erroring, the timer never
@@ -39,7 +39,8 @@ fi
 gzip -9 "${WORK}/snapshot.db"
 
 # Idempotent, and keeps the prunes below from erroring on a directory that
-# doesn't exist yet (weekly/ is only born on the first Sunday run).
+# doesn't exist yet (without this, weekly/ would not exist until the first
+# Sunday run).
 rclone mkdir "${REMOTE}/daily"
 rclone mkdir "${REMOTE}/weekly"
 

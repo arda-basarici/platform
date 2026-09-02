@@ -1,5 +1,5 @@
 # Frappe HR for leave-impact-agent (that repo's deploy/frappe/ owns the stack;
-# this is its one stanza).
+# this is the production site's stanza, the world sites follow below).
 # No request_body cap: Frappe uploads (attachments, CSV imports) are legitimate;
 # nginx inside the stack enforces its own 50m. No security-header block either:
 # Frappe's nginx already sends HSTS (2 y, preload) and nosniff, and the edge's
@@ -14,7 +14,8 @@ hr.ardabasarici.dev {
 	}
 }
 
-# leave-impact world sites: one Frappe site per world version (ruled 2026-08-24),
+# leave-impact world sites (a world: one generated organization the agent plans
+# over; README): one Frappe site per world version (ruled 2026-08-24),
 # same bench — the Host header selects the site, so each world is one stanza here
 # + one DNS record. Teardown removes the stanza with the site.
 hr-w1.ardabasarici.dev {

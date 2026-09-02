@@ -89,7 +89,7 @@ jobs:
       # the Origin CA pair (validate loads the files; the real key never leaves
       # the workstation). The image is the box's own `caddy:2-alpine`, pinned by
       # digest here. A validator whose mounts failed validates the image default
-      # and still says "Valid configuration" (gotcha, 2026-08-30), so the pass
+      # and still says "Valid configuration" (found 2026-08-30), so the pass
       # is the adapted JSON naming every hostname the tenant files declare —
       # counted, not listed, so adding a tenant changes nothing here.
       - name: caddy validate (box layout with every tenant)

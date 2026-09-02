@@ -6,7 +6,7 @@ one shared Docker network. A project lands as its own Compose stack plus one
 directory of site stanzas under `projects/<name>/` (`runbooks/add-a-tenant.md`).
 Nothing here is box-specific: a rebuilt box replays this file, and
 `ansible/site.yml` is its transcription (one role per section below, proven
-on a blank Debian 12 host: `runbooks/ansible-test-host.md`). This file stays
+on a blank host of the box's own major: `runbooks/ansible-test-host.md`). This file stays
 the readable runbook and the explanation of every choice; the roles are the
 executable form of the same steps.
 

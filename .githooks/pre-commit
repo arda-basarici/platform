@@ -1,7 +1,7 @@
 #!/bin/sh
 # Secret scan on every commit — blocks the commit if staged changes contain
-# anything token-shaped. Fail-closed: a missing scanner blocks too (this repo
-# sits next to ~/.claude material; a silent pass is worse than a loud stop).
+# anything token-shaped. Fail-closed: a missing scanner blocks too (a silent
+# pass is worse than a loud stop).
 #
 # One-time per clone: git config core.hooksPath .githooks
 # Scanner: gitleaks (winget install Gitleaks.Gitleaks)

@@ -11,7 +11,7 @@ repository's `infra/` on 2026-08-27, zero-diff plan against the same state).
 | Value | Producer | Where it is used |
 |---|---|---|
 | `hr.ardabasarici.dev` | platform: Cloudflare A record (proxied) + a stanza in `sites.caddy` | the agent's configuration, the HR system's own site config |
-| `hr-w1.ardabasarici.dev` (one hostname per world version; the `Host` header selects the Frappe site) | platform: A record + a stanza in `sites.caddy` | same; teardown removes the stanza with the site |
+| `hr-w1.ardabasarici.dev` (one hostname per world version — a world is one generated organization the agent plans over; the `Host` header selects the Frappe site) | platform: A record + a stanza in `sites.caddy` | same; teardown removes the stanza with the site |
 | upstream `frappe-frontend-1:8080` | application: the bench stack's frontend service on `web` | both stanzas' `reverse_proxy` |
 | the `web` network | platform | the bench stack joins it as external |
 | no request-body cap, no proxy security headers | platform, by ruling in the stanzas: Frappe's nginx enforces its own 50m upload limit and already sends HSTS + nosniff | the application keeps sending them |
@@ -32,6 +32,7 @@ repository's `infra/` on 2026-08-27, zero-diff plan against the same state).
 Stack commands run from the repository root with the Identity Center profile:
 `AWS_PROFILE=leave-impact terraform -chdir=terraform/stacks/leave-impact-prod plan`.
 
-Pending on the box, per the backlog: the MariaDB dump unit and its restore
-drill; Frappe's `.env` onto a SOPS file under this directory with its own
-runtime recipient.
+Pending on the box, each on its trigger (ARCHITECTURE, the restraint list): the
+MariaDB dump unit and its restore drill, once the agent's first generated world
+is data worth keeping; Frappe's `.env` onto a SOPS file under this directory with
+its own runtime recipient, at the next touch of its secrets.

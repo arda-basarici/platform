@@ -1,4 +1,4 @@
-# README "Domain + TLS" and "The proxy: bring-up": the machine-local runtime
+# README "Domain + TLS" and "The proxy: bring-up and every later change": the machine-local runtime
 # root, the origin cert pair, and the box-owned Caddy stack from the checkout.
 
 # Traversable by everyone; each child carries its own protection.

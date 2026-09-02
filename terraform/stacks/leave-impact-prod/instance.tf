@@ -1,6 +1,6 @@
 # The application host: one arm instance behind Cloudflare, administered over
-# SSM. The DESIGN ruling ("one EC2 instance, one Compose stack") and its reasons
-# live there; this file is the mechanics.
+# SSM. The ruling ("one EC2 instance, one Compose stack") and its reasons are
+# the leave-impact-agent repository's DESIGN; this file is the mechanics.
 
 # --- Ingress: the security group is the AWS twin of the box's firewall.sh -----
 # 443 from Cloudflare's pinned ranges and nothing else — no 22, no 80. A scanner
@@ -27,7 +27,8 @@ resource "aws_vpc_security_group_ingress_rule" "https_from_cloudflare" {
 
 # Outbound stays open: image pulls, SSM's agent channel, Parameter Store,
 # Bedrock, and the world's SaaS APIs (Jira, Google, Frappe on the box) are all
-# outbound. Tightening egress is a later hardening step, not a probe criterion.
+# outbound. Tightening egress is a later hardening step, not a first-milestone
+# criterion.
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.app.id
   cidr_ipv4         = "0.0.0.0/0"

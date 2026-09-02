@@ -4,11 +4,14 @@ The operational layer under the portfolio's deployed projects: the shared edge, 
 hosts, the cloud resources, and the per-project wiring that joins an application to
 them. One repository, owned by no application. This document holds the decisions
 and their reasons, as a narrative snapshot of the current design, edited in place;
-the journey lives in the session log. How it is built → [ARCHITECTURE.md](ARCHITECTURE.md);
+the journey is the git history. How it is built → [ARCHITECTURE.md](ARCHITECTURE.md);
 the pitch → [README.md](README.md).
 
-*Snapshot of the built extraction · last updated 2026-08-29 · the four steps that
-founded it have shipped; what remains is trigger-gated (the closing sections).*
+*Snapshot of the built extraction · last updated 2026-09-02 · the four founding
+steps, the edge, the host alarms, the monthly restore check and the
+rebuild-and-restore drill have shipped; two steps stay open — the live replay of
+the playbook, and the DNSSEC chain waiting on the registrar's DS record — and
+everything after them is trigger-gated (the closing sections).*
 
 ---
 
@@ -100,13 +103,13 @@ is ownership, classification, recovery, and handling. The full policy is
 | Rule | Why |
 |---|---|
 | Ownership follows the consumer: whoever needs the secret to do its job owns it | platform: the Origin CA pairs, the rclone token, the dead-man's-switch URL, deploy-boundary credentials · application: API keys, admin tokens, database passwords. Ownership and store are independent axes; the store is chosen afterwards by where the consumer runs |
-| Store follows workload identity: AWS → SSM via the instance role · the box → SOPS + age · CI → OIDC, GitHub environment secrets only when a workflow itself needs the value · workstation → user environment variables. Material that is re-issuable at will (the Origin CA pairs) is not vaulted at all: it lives host-native and is regenerated, not recovered | each store rides an identity the host already has; none needs a bootstrap credential |
+| Store follows workload identity: AWS → SSM via the instance role · the box → SOPS + age · CI → OIDC, GitHub environment secrets only when a workflow itself needs the value · workstation → user environment variables. Material that is re-issuable at will (the Origin CA pairs) is never treated as recoverable: it lives where its host reads it (the box's `certs/`, the app host's SSM parameters) and is regenerated, not recovered | each store rides an identity the host already has; none needs a bootstrap credential |
 | Three classes, and only the first is vaulted: *secret* (keys, passwords, private keys, tokens) · *sensitive config* (the origin address, account ids) · *normal config* (image digests, hostnames, parameter names, public keys) | otherwise "put anything operationally important in a vault" makes the system harder to reason about |
 | Today every SOPS file has two recipients, the workstation and the recovery identity; no key lives on a host. If a host is ever to decrypt on its own, recipients are scoped by consumer (a platform-box recipient for `box/` and backup secrets, a per-tenant runtime recipient only where that tenant must decrypt autonomously), never one box-wide identity | one host key that decrypts every tenant's file is convenience, not least privilege; a compromised host should read what it runs, not everything |
 | A recovery recipient, its private key in the password manager, is on every SOPS file | before it, one private key on one workstation was the only path to every encrypted value; losing it lost them. The highest-value fix in this whole topic, and the first thing shipped |
 | Terraform owns stores, paths, policies and references; production secret values never enter state | the first draft assumed `ignore_changes = [value]` kept a value out of state; it does not (refresh still reads it). The write-only argument `value_wo` (Terraform ≥ 1.11, AWS provider 6.x) does; adopted at the AWS-stack move with its proof (ARCHITECTURE, the state map). State is a file, and this repository is public |
 | No application secret is duplicated into GitHub | a workflow holds only what the workflow itself uses (the ssh deploy key) |
-| The public repository carries the policy and a sanitized inventory by class; the exact inventory (name · consumer · store · path · recovery) lives in the private stream folder | architecture secrecy is not the security boundary, and there is still no reason to hand an attacker a complete operational map |
+| The public repository carries the policy and a sanitized inventory by class; the exact inventory (name · consumer · store · path · recovery) is kept outside the repository, in the operator's private record | architecture secrecy is not the security boundary, and there is still no reason to hand an attacker a complete operational map |
 
 **Rejected: AWS Parameter Store for everything.** Possible, wrong trade. The box has no
 AWS identity, so reading SSM from it means a long-lived IAM access key on the box (a
@@ -215,7 +218,7 @@ traffic evidence is a guess, and the free plan's analytics keep one day of it.
 | a steam-lens Terraform stack | steam-lens acquires cloud resources | its API-managed pieces (the Cloudflare zone) are `edge`, not a per-project stack |
 | `aws-foundation` (shared AWS: the OIDC provider, shared buckets) | a second AWS stack consumes the same resource | one consumer today |
 | a `github` stack (environments, repository secrets) | there is a reason to manage them from code | none yet |
-| a paid Cloudflare plan | an automated client of a proxied hostname needs an exception from Bot Fight Mode (Super Bot Fight Mode is the first tier with one) | every machine client has passed so far — the external monitors included (read 2026-08-30: four hostnames, keyword checks matching the upstream body on every check, one of them for 20 days); "more features" is not a trigger |
+| a paid Cloudflare plan | an automated client of a proxied hostname needs an exception from Bot Fight Mode (Super Bot Fight Mode is the first tier with one) | every machine client has passed so far — the external monitors included (read 2026-08-30: four hostnames, an HTTP check on `/healthz` for one and keyword checks matching the upstream body for the other three, passing on every check, one of them for 20 days); "more features" is not a trigger |
 | edge-wide response headers (a `http_response_headers_transform` ruleset) | a header every tenant should carry that the origins do not set | `nosniff` rides on the HSTS setting; `X-Frame-Options` / `Permissions-Policy` over Frappe untested; the tenant stanzas set their own |
 | Authenticated Origin Pulls (mTLS edge → origin) | a second control on origin reachability is wanted | both origins already admit Cloudflare ranges only; defense in depth, not a hole |
 | Cloudflare Access in front of `hr-w1` | its own design step | it adds a service-to-service trust boundary (the leave agent's machine path needs a service token), not a browser login toggle |
@@ -257,7 +260,7 @@ shipping alone, each with an acceptance stated before it started.
 
 | Step | Shipped | Acceptance, and how it held |
 |---|---|---|
-| 1. Found the repository | 2026-08-26: public from the first commit, gitignore + the gitleaks hook first, these documents, `SECRETS.md`, the private stream with the exact inventory | the first commit clean under the hook |
+| 1. Found the repository | 2026-08-26: public from the first commit, gitignore + the gitleaks hook first, these documents, `SECRETS.md`, the exact inventory kept outside the repository | the first commit clean under the hook |
 | 1b. The recovery recipient | 2026-08-27: a second age identity, private key in the password manager, added to the existing SOPS file | the file decrypts with the recovery key alone |
 | 2. Extract the box layer from steam-lens | 2026-08-27: a split, not a move; the shared layer to `box/`, the site stanzas to `projects/*/sites.caddy`, the backup units and `BACKUP_PING_URL` to `projects/steamlens/`; `deploy.sh` stayed in steam-lens (deployment entrypoint); one deploy of the proxy with the old Caddyfile as the rollback | `steamlens.`, `hr.`, `hr-w1.` answered before anything was deleted from steam-lens; the import glob verified (and corrected, the one-wildcard finding above); afterwards each application repository knows only itself |
 | 3. Move the AWS stack | 2026-08-27: `infra/` → `terraform/stacks/leave-impact-prod/`, the contract values into `projects/leave-impact/README.md`, the application workflow pointing here; then the `value_wo` migration; then (2026-08-28) the state bucket adopted into the stack | zero-diff plan for the move; the state-pull proof for the migration (ARCHITECTURE, the state map), the three production values reading back afterwards; zero-diff for the bucket |
@@ -278,9 +281,11 @@ is cheapest while the runbook is in hand; the guard exists because that is exact
 the shape of task that turns two days of cleanup into a mini-project. The rulings
 that shaped the build:
 
-- *Test host:* a hand-launched throwaway EC2 instance (Debian 12, the leave-impact
-  region), never in a stack's state, terminated on acceptance; a fresh instance is
-  the blank host on every run. A local Hyper-V VM was the alternative; the cloud
+- *Test host:* a hand-launched throwaway EC2 instance (a Debian image of the box's
+  own major, the leave-impact region), never in a stack's state, terminated on
+  acceptance; a fresh instance is the blank host on every run. The first runs used
+  Debian 12; since the check-mode comparison found the majors differed (a `gnupg`
+  the box's Debian 13 image lacks), the proof host shares the box's major. A local Hyper-V VM was the alternative; the cloud
   host wins because the firewall check from the workstation then runs from the real
   internet. Cheap to change.
 - *Acceptance, made precise:* the runbook stops at the proxy and the applications
@@ -339,43 +344,50 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
 - **Backups for the other two databases** (Frappe's MariaDB dump unit under
   `projects/leave-impact/`, PostgreSQL on the app host) and the restore drill that
   makes a backup real: when there is data worth keeping, i.e. the leave-impact
-  agent's first generated world.
-- **Replaying the playbook against the live box**: at the first rebuild, or when a
-  `box/` change is large enough that hand-applying it is the riskier path.
+  agent's first generated world (the simulated organization it plans over).
 - **A platform-box age recipient**, so the box decrypts its own files, and Frappe's
-  box `.env` onto SOPS with its own runtime recipient: when the workstation-push
-  path becomes the bottleneck, since the change moves the host-compromise boundary.
+  box `.env` onto SOPS with its own runtime recipient: at the next touch of the
+  box's or Frappe's secrets, as its own step, since the change moves the
+  host-compromise boundary.
 - **Authenticated CI `plan`**, then apply-from-CI behind an approval gate: when a
   second person applies, or the first stops applying from a laptop.
 - **HSTS to six months** on the zone: after a canary week with nothing broken
   (the day-long value was applied 2026-08-28).
-- **The runbooks not yet written** (box rebuild, restore, instance replacement on
-  the app host): written the first time each is exercised, never ahead of it.
+- **Runbooks are written the first time each is exercised, never ahead of it.**
+  The four that exist (add a tenant, the test host, replace the app host, box
+  rebuild and restore) came that way; the next ones (a patch day, an Origin CA
+  rotation, an edge change) wait for their first run.
 - **A host-up signal, then minimal observability**: one external HTTPS monitor per
   hostname first — in place 2026-08-30 (ARCHITECTURE, "Set by hand"); it also
   answered whether Bot Fight Mode challenges machine clients: it does not, for
   this one; then EC2 status-check alarms with auto-recover and a subscribed
-  recipient — in place 2026-08-30, one SNS topic carrying the alarms, the budget
-  and the adopted cost-anomaly subscription (ARCHITECTURE, "An alert"); Docker log
+  recipient — in place 2026-08-30, one SNS topic carrying the alarms and the
+  adopted cost-anomaly subscription, the budget's thresholds mailing the same
+  address directly by ruling (ARCHITECTURE, "An alert"); Docker log
   rotation and a free-space signal still wait for the next controlled recreate.
   Nothing here is gated on the application.
 - **The playbook against the live box, in two steps**: a `--check --diff` run
   first, its differences classified (intended, unintended, not representable in
-  check mode) and recorded as summaries — done 2026-08-30 (README, evidence table);
-  then the replay itself on an operational reason (a rebuild, or a `box/` change
-  large enough that hand-applying it is the riskier path).
+  check mode) and recorded as summaries — done 2026-08-30 (README, "Proven, not asserted");
+  then the replay itself, the one open step. It is a pure replay: no play change
+  rides it, check mode is repeated immediately before, and a difference that
+  needs a play fix aborts it — the fix goes through CI and a blank host first, and
+  the replay restarts from its preflight. The live box is never the first proof of
+  a changed play. Done when a second run reports `changed=0`.
 - **Evidence as committed record, not narration**: dated summaries of the zero-diff
   plans, the `verify.sh` passes and the check-mode outcome, never raw plan or
   transcript output, which carries topology.
-- **The rebuild-and-restore drill**, now that the restore of the SteamLens backup
-  has been exercised (2026-08-30, read-only, same host, by hand and then by the
-  monthly timer that repeats it): blank host → play → `verify.sh` → the application via its
-  own deploy path → a real restore, timed; its runbook written during it. The
-  strongest evidence this repository can add.
+- **The rebuild-and-restore drill** — run 2026-08-30 (`runbooks/box-rebuild.md`),
+  once the read-only restore had been exercised on the box by hand and by the
+  monthly timer: blank host and blank control node → play → `verify.sh` → the
+  application via its own deploy path → a real restore, timed at about an hour,
+  the runbook written during it. A second, rehearsed run is the next evidence,
+  before any sub-hour claim.
 - **Per-tenant proxy networks** (one per tenant, Caddy joining all, each tenant
   only its own; one line per application repository): at the next proxy recreate,
   paired with hardening the Caddy container, since the proxy is the pivot between
-  tenants. No trigger: the HR system's data already justifies it.
+  tenants. The justification is already there (the HR system's data); the timing
+  is the next recreate, and it does not ride the live replay.
 - **Private connectivity between the hosts**, the leave agent to Frappe first: a
   design step of its own at the first cross-host call that should not ride the
   public edge, the mechanism (public edge + application auth, mTLS, WireGuard, a

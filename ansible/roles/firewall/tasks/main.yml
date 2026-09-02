@@ -81,7 +81,7 @@
   changed_when: false
   check_mode: false
 
-- name: Assert the chain ends in a DROP on the uplink
+- name: Assert the chain carries the origin rules (a 443 match and a DROP)
   ansible.builtin.assert:
     that:
       - "'-j DROP' in docker_user_chain.stdout"

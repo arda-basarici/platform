@@ -1,8 +1,9 @@
 # Runbook — replace the app host's instance
 
 Any change to `terraform/stacks/leave-impact-prod/user_data.sh.tftpl` replaces the
-EC2 instance (`user_data_replace_on_change`), and so does an instance-type or
-AMI change that is not under `ignore_changes`. The data volume is a separate
+EC2 instance (`user_data_replace_on_change`), and so does an instance-type
+change (the AMI is under `ignore_changes`; an image upgrade is a deliberate
+`-replace`). The data volume is a separate
 resource and survives; only its attachment follows the new instance. The Elastic
 IP moves with it, so no DNS changes. First exercised 2026-08-29 for the Caddy
 client-IP change; kept current each time it runs.
@@ -24,7 +25,9 @@ terraform -chdir=terraform/stacks/leave-impact-prod plan
 # 2. The three parameters the boot script polls are present (versions, no values):
 aws ssm describe-parameters --region eu-central-1 --parameter-filters "Key=Path,Values=/leave-agent/" --query 'Parameters[].[Name,Version]' --output text
 # 3. secrets.tf: value_wo_version is untouched (1) — a changed value would make
-#    this apply overwrite the real values with the placeholder (CLAUDE.md lesson).
+#    this apply overwrite the real, out-of-band values with the placeholder; if it
+#    must change: save the values, apply, re-put, read back (ARCHITECTURE, the
+#    state map).
 ```
 
 If the Caddyfile inside the template changed, validate the rendered result with

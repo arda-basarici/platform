@@ -112,7 +112,7 @@ The image pulls anonymously from GHCR; compose comes from the app repository; th
 `.env` is decrypted here and piped over ssh, never landing in a checkout:
 
 ```sh
-SSH="ssh -i $HOME/.ssh/ansible-throwaway admin@<host-ip>"      # real box: ssh box, user arda
+SSH="ssh -i $HOME/.ssh/ansible-throwaway admin@<host-ip>"      # real box: ssh -t box (sudo asks on a tty), user arda
 $SSH 'sudo install -d -m 0755 -o admin -g admin /srv/steamlens /srv/steamlens/data'
 scp -i ~/.ssh/ansible-throwaway ~/steam-lens/compose.yaml admin@<host-ip>:/srv/steamlens/compose.yaml
 sops -d ~/steam-lens/deploy/box/secrets.enc.env | $SSH "umask 077 && tr -d '\r' > /srv/steamlens/.env"
@@ -134,9 +134,10 @@ shared client id sees the backups** — Drive scopes access by OAuth *applicatio
 shared client is the application, and the box's dead credential is not needed. The
 2026-08-30 drill listed exactly the 7 dailies + 4 Sunday weeklies and restored from
 one. Two caveats keep this honest: it holds only while rclone's shared client id
-lives (its retirement is announced for during 2026 — the platform FIXLOG carries the
-follow-up ruling), and the fallback needs no rclone at all: download the object in
-the Drive web UI and `scp` it to the host.
+lives (its retirement is announced for during 2026; as of 2026-09-02 the box still
+rides it, and an own OAuth client for the remote is the planned replacement — this
+section is rewritten when that lands), and the fallback needs no rclone at all:
+download the object in the Drive web UI and `scp` it to the host.
 
 The OAuth dance that actually works headless — authorize *locally on the control
 node*, then ship the whole config (the interactive `config_token>` paste over ssh

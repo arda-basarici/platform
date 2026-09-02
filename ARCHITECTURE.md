@@ -6,12 +6,15 @@ from a blank host, the repository and state maps, and the seam between platform 
 application. The *why* behind each shape is [DESIGN.md](DESIGN.md)'s (cited by name);
 the pitch is [README.md](README.md)'s. This document describes the system as it runs.
 
-*Snapshot of the running system · last updated 2026-08-30 · the extraction from
+*Snapshot of the running system · last updated 2026-09-02 · the extraction from
 steam-lens complete (the box has served from this checkout since 2026-08-27), both
 Terraform stacks adopted zero-diff (2026-08-27 and 2026-08-28), the box playbook
-proven on a blank host (2026-08-28) and compared against the live box in check mode
-(2026-08-30, ten differences, all classified). The live box has not yet been replayed
-by the playbook; the restraint list at the end carries what is deliberately not done.*
+proven on a blank host (2026-08-28), compared against the live box in check mode
+(2026-08-30, ten differences, all classified) and drilled end to end the same day
+(blank host and control node to SteamLens serving restored data,
+`runbooks/box-rebuild.md`); the SteamLens backup restore-checked monthly by a timer.
+The live box has not yet been replayed by the playbook; the restraint list at the
+end carries what is deliberately not done.*
 
 ---
 
@@ -99,8 +102,8 @@ commit CI tested. The gate lives in GitHub's settings, not in this tree, so it i
 read back on a date rather than assumed: on 2026-08-30 (`gh api …/environments/production`)
 the leave-impact environment had the required reviewer and a deployment-branch policy
 naming `main` only — the two facts the deploy role's trust (`deploy.tf`) relies on;
-the SteamLens environment had the reviewer and no branch policy (noted to that
-project). Frappe's own login brake (consecutive-failure lockout) was read the same day
+the SteamLens environment had the reviewer and no branch policy (a gap in that
+project's own settings, not this repository's). Frappe's own login brake (consecutive-failure lockout) was read the same day
 on both sites and is on; its values are the application's, not recorded here:
 
 ```mermaid
@@ -136,7 +139,10 @@ application's.
 `projects/<name>/`. steam-lens's takes a WAL-safe `sqlite3 .backup`, integrity-checks
 it before shipping (an unverified upload of a corrupt file preserves the corruption),
 gzips, uploads to Drive with the host's rclone, prunes to 7 daily + 4 weekly, and
-pings a healthchecks.io dead-man's switch, so the alert channel is silence. Backups
+pings a healthchecks.io dead-man's switch, so the alert channel is silence. On the
+first of each month a second timer restores the newest object on the same host,
+integrity-checks it and compares four table counts with the live store
+(`restore-check.sh`), pinging its own dead-man only on a pass. Backups
 exclude deployment secret material by construction (`.env`, certificates, Caddy
 state: each regenerable from the repositories or the dashboard); the database
 backups themselves are sensitive data and are treated as such. This is the only
@@ -146,14 +152,17 @@ restraint list, below, carries the trigger).
 **An alert.** Three channels, each for what it can actually see. From outside: the
 four UptimeRobot monitors (below, "Set by hand") say whether each hostname's
 upstream answers. From the box: the backup's dead-man's switch on healthchecks.io
-says whether last night's run happened. From AWS: one SNS topic
-(`leave-impact-alerts`, one confirmed e-mail subscriber) receives everything the
-account raises — two CloudWatch alarms on the app host's status checks (a *system*
+says whether last night's run happened (and, monthly, whether the backup still
+restores). From AWS: one SNS topic (`leave-impact-alerts`, one confirmed e-mail
+subscriber) receives the alarms and the anomaly findings — two CloudWatch alarms on the app host's status checks (a *system*
 check failure recovers the instance onto healthy hardware, same id, EIP and volumes,
 and notifies; an *instance* check failure, the OS itself, only notifies, since an
-automatic reboot would erase the evidence), the budget's four thresholds, and Cost
-Anomaly Detection's default per-service monitor at a $2 absolute threshold,
-delivered when found rather than in a daily digest. Delivery was proven on
+automatic reboot would erase the evidence) and Cost Anomaly Detection's default
+per-service monitor at a $2 absolute threshold, delivered when found rather than in
+a daily digest. The budget's four thresholds mail the same address directly, not
+through the topic: a deliberate exception (routing them would need a budgets
+service principal in the topic policy and its own delivery test, for no second
+subscriber). Delivery through the topic was proven on
 2026-08-30 by forcing the instance-check alarm into ALARM by hand: the first try
 was refused at the topic (a policy that named the account where CloudWatch
 publishes as a service principal), visible only in the alarm's action history —
@@ -192,17 +201,16 @@ flowchart TD
 CI can reach no backend, provider, or host by design (DESIGN, "Terraform: plan and
 apply stay on the laptop"). The read-only lock file makes a provider bump a
 deliberate commit: a lock that no longer matches its constraints fails the init.
-The Terraform line is `~1.15`; the providers are pinned by the lock files (aws
-6.61.0, cloudflare 5.24.0), with hashes for both the Windows laptop and the Linux
-runner.
+The Terraform line is `~1.15`; the providers are pinned by the lock files, with
+hashes for both the Windows laptop and the Linux runner.
 
 ## The edge, as it stands
 
 Everything Cloudflare does for the zone, by who owns it. Read by API on 2026-08-28
 with a read-only inventory token and kept current by the `edge` stack's plan.
 
-**In code (`terraform/stacks/edge`).** Every record of the zone, eleven: the four
-proxied A records (`steamlens.`, `hr.`, `hr-w1.` to the box; `leave-agent.` to the
+**In code (`terraform/stacks/edge`).** Every record of the zone (eleven since
+2026-08-28: eight adopted, three created from code): the four proxied A records (`steamlens.`, `hr.`, `hr-w1.` to the box; `leave-agent.` to the
 app host's elastic IP), the portfolio site's apex and `www` CNAMEs (DNS-only; GitHub
 Pages terminates their TLS) and its two verification TXTs, and the three no-mail
 records (a null MX, SPF `-all`, DMARC reject). Settings: `ssl = strict`,
@@ -270,14 +278,14 @@ order because each depends on the one before, so a failure names its section.
 |---|---|---|
 | `hardening` | installs the sshd drop-in (key-only, no root, no keyboard-interactive) and reloads sshd while the current session can still catch a lockout; installs ufw and unattended-upgrades; allows 22 *before* enabling ufw default-deny; arms the security-update timers | first: everything after it rides the hardened ssh |
 | `docker` | Docker's own apt repository (the distro package lags majors), Engine + the Compose plugin, the login user in group `docker` with a forced re-login so the group takes effect mid-play, the shared `web` network | before the firewall: the DOCKER-USER chain does not exist until Docker does |
-| `firewall` | the `/srv/platform` checkout (its first consumer; the deploy owns the revision afterwards), `firewall.sh` + `box-firewall.service` enabled and applied, an uplink drop-in where the interface is not `eth0`, then an assertion that the chain ends in a DROP on the uplink | needs Docker's chains; must precede the proxy so no port is ever published unguarded |
+| `firewall` | the `/srv/platform` checkout (its first consumer; the deploy owns the revision afterwards), `firewall.sh` + `box-firewall.service` enabled and applied, an uplink drop-in where the interface is not `eth0`, then an assertion that the chain carries the origin rules (a 443 match and a DROP) | needs Docker's chains; must precede the proxy so no port is ever published unguarded |
 | `proxy` | the runtime root `/etc/platform`, the origin pair installed from a workstation path outside the repository (key 0600), the proxy stack up | needs the checkout and the firewall |
 | `backups` | sqlite3 + rclone, the tenant's runtime directory, the backup units installed from the checkout with a drop-in setting `User=` to the inventory's login user, the nightly timer enabled; verifies the rclone remote exists as the login user | last: needs the proxy's directories; the Drive OAuth itself stays a manual step (headless token exchange; the procedure is `projects/steamlens/README.md`, "One-time setup"), so the role fails on the box and only warns on a test host (`backups_require_remote: false`) |
 
 `ansible/verify.sh` is the acceptance checklist, run on the host as root: every
 runbook section read back from the running system (sshd's *effective* config via
 `sshd -T`, ufw active with 22 the only allow, the apt timers armed, Docker and `web`,
-the DOCKER-USER chain admitting 443 from the 15 Cloudflare IPv4 ranges and dropping
+the DOCKER-USER chain admitting 443 from each pinned Cloudflare IPv4 range and dropping
 the rest on the uplink, the key 0600, Caddy the only container publishing a port).
 On a host that has no application, Caddy answering every hostname over the installed
 pair with a 502 is the pass: the upstream is absent by design. The one check that
@@ -285,20 +293,22 @@ cannot prove itself from inside, the bare IP timing out on 443 from the internet
 is run by hand from the workstation.
 
 The blank host is a hand-launched throwaway EC2 instance (`runbooks/ansible-test-host.md`:
-Debian 12 in the leave-impact region, its own security group and key pair, never in
-a stack's state, terminated after the run). The control node is WSL with a
+a Debian image of the box's own major in the leave-impact region, its own security
+group and key pair, never in a stack's state, terminated after the run). The control node is WSL with a
 dedicated key; the committed inventory is an example, the real one is gitignored,
 and the live box is addressed by its ssh alias so the origin address never enters
 this public repository. The play reached a passing `verify.sh` on a blank host on
 2026-08-28. Against the live box it has run in check mode only (2026-08-30: ten
 differences, every one a transcription difference — file modes, the spelling of the
 same sshd and ufw state, the play's own backup-user drop-in); that box was built by
-the runbook the play transcribes, and replaying it there is its own ruling. The
+the runbook the play transcribes, and the replay itself is pending (the restraint
+list, below). The
 control node (WSL) holds three things for that: the box key (`~/.ssh/platform-box`),
 the `box` alias in its ssh config, and the Origin CA pair at `~/.platform/certs`,
 which is copied in for a run and removed after — the control node is not a store
-for it. The test host is a Debian 12 image; the box runs Debian 13 (trixie), which
-is where the missing `gnupg` prerequisite surfaced.
+for it. The proof host has shared the box's major, Debian 13 (trixie), since that
+comparison: the 2026-08-28 runs used Debian 12, whose image shipped the `gnupg` the
+box's lacks.
 
 ## The box, on disk
 
@@ -349,7 +359,8 @@ run, from the checkout, knows that tenant's data.
 | `terraform/stacks/edge/` | the zone's eleven records (eight adopted, the three no-mail ones created from code) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · Bot Fight Mode · DNSSEC; the zone is a data lookup | per stack |
 | `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md` · `replace-the-app-host.md` · `box-rebuild.md` (written during the 2026-08-30 drill); each written when first exercised | — |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
-| `.github/workflows/ci.yml`, `.githooks/pre-commit` | the credential-free CI; the fail-closed gitleaks hook | slow |
+| `scripts/check-cf-ranges.sh` | the check CI and the laptop share: the three pinned copies of Cloudflare's IPv4 ranges (the box Caddyfile, `firewall.sh`, the security group's variable) against each other and, given the published list, against it | on a range change |
+| `.github/workflows/ci.yml`, `.github/workflows/cf-ranges.yml`, `.githooks/pre-commit` | the credential-free CI; the weekly run of the range check against Cloudflare's published list; the fail-closed gitleaks hook | slow |
 
 Everything on the application side of DESIGN's ownership table stays in its
 application repository; the map above is the whole of what this one holds.
@@ -401,14 +412,16 @@ first and re-put right after, then read back.
   table). The Caddyfile flip from the hello page to the app, when its first HTTP
   surface lands, happens in that stack.
 - **No backup for Frappe's MariaDB or the app host's PostgreSQL.** The trigger is
-  data worth keeping: the leave-impact agent's first generated world. Until then a
+  data worth keeping: the leave-impact agent's first generated world (the
+  simulated organization it plans over). Until then a
   dump unit protects placeholder data, and its restore drill would drill nothing.
 - **The live box has not been replayed by the playbook.** It was built by the
   runbook the play transcribes and verified by the same checks. The check-mode
   comparison ran on 2026-08-30 (ten differences, all explained; `verify.sh` 23/23)
-  and the control node's key is in the box's `authorized_keys` since; the replay
-  itself waits for an operational reason (a rebuild, or a `box/` change large enough
-  that hand-applying it is the riskier path).
+  and the control node's key is in the box's `authorized_keys` since. The replay
+  itself is the one open host step, run pure: no play change rides it, check mode
+  is repeated immediately before, and a difference that needs a play fix aborts it
+  (fix, CI, blank host, restart). Done when a second run reports `changed=0`.
 - **Traffic evidence is a 24-hour window.** Security analytics on the free plan keep
   a day; a decision that needs traffic evidence (widening the exploit-path rule,
   moving the rate-limit threshold) reads that window on the day, not a history.

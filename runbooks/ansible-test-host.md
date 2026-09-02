@@ -1,10 +1,10 @@
 # The Ansible test host — launch, use, terminate
 
 A hand-launched throwaway EC2 instance the box playbook (`ansible/site.yml`) is
-proven against: a fresh Debian 12 is the blank host on every acceptance run
-(DESIGN, "The playbook's rulings"). Never in a stack's state, never left running: the
-cost is ~$0.02/h, the AWS cost alert is the backstop, the TODO in the platform
-stream carries the ids while one exists.
+proven against: a fresh Debian of the box's own major is the blank host on every
+acceptance run (DESIGN, "The playbook's rulings"). Never in a stack's state, never
+left running: the cost is ~$0.02/h, the AWS cost alert is the backstop, and the
+instance and key-pair ids are noted outside the repository while one exists.
 
 Region `eu-central-1`, profile `leave-impact` (`$env:AWS_PROFILE="leave-impact"`
 per PowerShell window). The security group `ansible-throwaway` (22 from the
@@ -73,8 +73,8 @@ mode first: `ansible-playbook -i inventory/local.yml site.yml --check --diff
 --ask-become-pass`, every `changed` explained before any real run.
 
 ```sh
-cd /mnt/c/Users/ardab/Desktop/projects/platform/ansible
-export ANSIBLE_CONFIG=/mnt/c/Users/ardab/Desktop/projects/platform/ansible/ansible.cfg   # absolute: /mnt/c is world-writable, the cwd cfg is ignored
+cd /mnt/c/<path-to-checkout>/platform/ansible
+export ANSIBLE_CONFIG=/mnt/c/<path-to-checkout>/platform/ansible/ansible.cfg   # absolute: /mnt/c is world-writable, the cwd cfg is ignored
 ansible -i inventory/local.yml all -m ping                     # pong first
 ansible-playbook -i inventory/local.yml site.yml               # the build
 ansible-playbook -i inventory/local.yml site.yml               # must say changed=0

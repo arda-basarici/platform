@@ -14,7 +14,7 @@ operating reference.
 | GitHub Actions → AWS | GitHub OIDC → STS | no long-lived AWS secret exists | — |
 | GitHub Actions → the box | a forced-command ssh private key | GitHub environment secret (the one thing the workflow itself holds) | the environment's settings page |
 | the box (netcup) | today: the workstation's age identity decrypts, the plaintext crosses ssh into a 0600 file under `/etc/platform/`; no key lives on the box. Designed next step, not built: an age identity per consumer scope so the host decrypts its own files | SOPS-encrypted files in git (`*.enc.env`): an application's beside its stack in its repository, decrypted to a 0600 `.env` beside the stack; the platform's under `projects/<name>/` here, decrypted to `/etc/platform/<name>/` (0600, outside the checkout) | `sops edit`; recipients per `.sops.yaml` |
-| a workstation | the user | user environment variables | the `api-key-onboarding` ceremony: `Read-Host` → User env var, never a chat or transcript |
+| a workstation | the user | user environment variables | entered once through a masked prompt into a User environment variable; never typed into a chat, a transcript, or a shell history |
 | Terraform | — | stores, paths, access policies, references only | a parameter's value is `value_wo` (write-only, never in state); the content is put out-of-band. If Terraform recreates a parameter, the placeholder is back: the production value is repopulated out-of-band before the dependent service counts as restored |
 
 The AWS deploy path is the model case: no stored deploy credential at all. Where a
@@ -24,8 +24,8 @@ credential must be stored (the ssh key), it is scoped to one command on one host
 
 | Class | Examples | Handling |
 |---|---|---|
-| **secret** | API keys, database passwords, private keys, tokens, OAuth refresh tokens | secret-grade handling per the table above: normally vaulted, with the re-issuable exceptions named in the ownership table; never in a commit, a log, a chat, or intentionally copied into an infrastructure/config backup. Application data stores and their backups may themselves hold secret material and are protected accordingly |
-| **sensitive config** | the box's origin address, the healthchecks ping URL | not published, but not vaulted as if it were a credential; a GitHub environment secret or a private note is enough |
+| **secret** | API keys, database passwords, private keys, tokens, OAuth refresh tokens, liveness ping URLs (a bearer capability: whoever holds one can fake a healthy signal) | secret-grade handling per the table above: normally vaulted, with the re-issuable exceptions named in the ownership table; never in a commit, a log, a chat, or intentionally copied into an infrastructure/config backup. Application data stores and their backups may themselves hold secret material and are protected accordingly |
+| **sensitive config** | the box's origin address, a throwaway test host's address | not published, but not vaulted as if it were a credential; a GitHub environment secret or a private note is enough |
 | **normal config** | image digests, hostnames, parameter *names*, public keys, ssh host *public* keys and fingerprints, the AWS account id (it is part of every ARN the contract publishes, and possession of it grants nothing) | committed where it is consumed |
 
 Only the first class requires secret-grade handling. It normally enters a secrets

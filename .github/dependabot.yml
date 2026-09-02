@@ -1,5 +1,5 @@
 # Pins move by pull request, never by aging. Actions are pinned by commit SHA in
-# ci.yml (a tag can be re-pointed; a SHA cannot), so a bump here is the only way
+# the workflows (a tag can be re-pointed; a SHA cannot), so a bump here is the only way
 # they change. A provider bump rewrites a stack's lock file; Dependabot keeps
 # every platform hash the lock already had (the first bump, aws 6.62.0 on
 # 2026-08-30, passed ci's `-lockfile=readonly` untouched), so the Linux-only

@@ -15,8 +15,8 @@ resource "aws_iam_openid_connect_provider" "github" {
 }
 
 # Trust: the subject a job emits when it runs under an environment. Recorded
-# from the first run (the OIDC deploy probe of the agent's probe days,
-# 2026-08-26): repositories created
+# from the first run (the OIDC deploy probe of the agent's first exploratory
+# runs, 2026-08-26): repositories created
 # after mid-2026 carry the owner's and the repository's numeric ids in the
 # subject — `repo:<owner>@<id>/<repo>@<id>:environment:<name>` — which is the
 # stronger pin (a renamed or re-created repository of the same name inherits

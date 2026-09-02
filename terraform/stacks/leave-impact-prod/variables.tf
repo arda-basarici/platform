@@ -8,15 +8,15 @@ variable "app_hostname" {
     The Cloudflare-proxied hostname that fronts the instance. It appears in two
     places only (the Cloudflare A record and the instance's Caddyfile), so renaming
     later is cheap. Chosen 2026-08-26 as plumbing, not a public face — a demo-facing
-    name can be added at the agent's demo milestone as a second record to the same
-    origin.
+    name can be added when the agent has something to show (its repository's DESIGN
+    names that milestone) as a second record to the same origin.
   EOT
   type        = string
   default     = "leave-agent.ardabasarici.dev"
 }
 
 variable "instance_type" {
-  description = "Application host size; the DESIGN ruling is t4g.small (2 vCPU / 2 GB arm)."
+  description = "Application host size; the leave-impact-agent repository's DESIGN rules t4g.small (2 vCPU / 2 GB arm)."
   type        = string
   default     = "t4g.small"
 }
@@ -55,9 +55,9 @@ variable "cloudflare_ipv4_ranges" {
 
 # The Bedrock shortlist the instance role may invoke — inference-profile IDs
 # (Frankfurt hosts current models only behind `eu.`/`global.` profiles). This is
-# the catalogue from the agent's probe days, not a choice: the choice waits for
-# the investigator milestone's measurements on the golden set (the agent
-# repository's VISION names the milestones), and rows are dropped or added here
+# the catalogue from the agent's first exploratory runs, not a choice: the choice
+# waits for the agent's model measurements on its hand-labelled evaluation set (a
+# milestone its repository's VISION names), and rows are dropped or added here
 # when it lands.
 variable "bedrock_models" {
   description = "Inference-profile IDs the instance role may invoke."

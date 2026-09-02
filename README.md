@@ -102,12 +102,21 @@ flowchart TD
 | The app host's failure reaches a person | two CloudWatch status-check alarms (system: recover + notify; instance: notify) on one SNS topic with a confirmed e-mail subscriber, applied 2026-08-30 as `2 imported, 5 added, 2 changed, 0 destroyed` (the account's default cost-anomaly monitor and subscription adopted in the same apply, its delivery moved from a daily digest to the topic); the path proven by forcing the instance alarm into ALARM — the first try found `CloudWatch Alarms is not authorized to perform: SNS:Publish` in the alarm history (the topic policy had named the account, not the CloudWatch service principal), one statement fixed it, and the second try delivered the ALARM and OK mails | the subscription's confirmation is a click in a mailbox Terraform cannot see; the box's host has no equivalent, only the external monitors |
 | The SteamLens backup restores, and keeps restoring | the newest nightly object pulled back from Drive on the box (2026-08-30): `integrity_check` ok, 30.7 MB, and four table counts compared against the live store opened read-only, every one ≥ the backup's by one day of writes (`classify_cache` 2 196 → 2 252, `reviews` 21 135 → 21 684, `mentions` 29 878 → 30 453, `reports` 43 → 44); Drive read back holding exactly the 7 dailies + 4 Sunday weeklies the script prunes to. The same check now runs monthly from a timer (`restore-check.sh`, first of the month, an hour after the backup) and pings its own dead-man only on a pass; its first hand run the same evening printed the same counts | the swap-in was exercised at the 2026-08-30 rebuild drill on a throwaway host (below); on the live box it remains a runbook step; nightly cadence means a real restore loses up to a day |
 | The whole recovery path works from nothing | the rebuild drill (2026-08-30, `runbooks/box-rebuild.md`): a fresh control node (new WSL distro; ssh keys minted, the age identity restored from the password vault and verified against the recorded recipient) and a blank Debian 13 host, taken to SteamLens serving restored data — deployed by its documented path, the newest backup pulled through a *fresh* `drive.file` OAuth authorization (no credential from the old box or old workstation), swapped in per the disaster procedure, `/healthz` green and all four table counts matching the object's recorded evidence digit for digit. About an hour end to end, first unrehearsed run, exact stamps in the runbook | the drill host was EC2, not netcup; DNS cutover and CD re-arming are listed in the runbook, not exercised; the fresh-OAuth path lives only while rclone's shared client id does (retirement announced for 2026) |
-| Both stacks stay zero-diff | dated plans 2026-08-30: leave-impact-prod `No changes` after the alarms apply; edge one in-place change, the DNSSEC `status pending → active` that waits on the registry's DS record | laptop-side, on demand |
-| Adding a tenant changes no shared configuration | a tenant is one directory under `projects/` and one `caddy reload`; Caddy validates before swapping, so a broken stanza fails closed | Caddy's `import` takes one wildcard, which is why a tenant's sites live in one file |
+| Both stacks plan clean, or with one explained diff | dated plans 2026-08-30: leave-impact-prod `No changes` after the alarms apply; edge exactly one in-place change, the DNSSEC `status pending → active` that waits on the registry's DS record and goes quiet when it lands | laptop-side, on demand; the edge diff stands until the registrar step is done |
+| Adding a tenant changes no shared proxy configuration | a tenant is one directory under `projects/` and one `caddy reload`; Caddy validates before swapping, so a broken stanza fails closed | Caddy's `import` takes one wildcard, which is why a tenant's sites live in one file; the host machinery is not tenant-generic yet: `verify.sh` names the hostnames it probes, and the backup role knows one tenant, so a tenant the platform backs up extends the play (`runbooks/add-a-tenant.md`) |
 | A deploy of the box layer is a commit hash | the box runs the proxy from a `git pull --ff-only` checkout; `git rev-parse HEAD` there is the deployed configuration | learned the hard way: a single-file bind mount pins the inode, and a pull replaced the file underneath it |
 | The AWS deploy path holds no long-lived credential | GitHub OIDC → STS into a role whose trust names one repository's `production` environment, whose only *write* power is `ssm:SendCommand` on instances tagged for the app (the rest is finding the host and reading the command's outcome) | the SteamLens path still holds one secret: a forced-command ssh key that can run one script |
 
 ## Operate it
+
+| To… | Edit | Then |
+|---|---|---|
+| add or change a DNS record | `terraform/stacks/edge/records.tf` | `plan` (exactly the expected count), `apply` from the laptop |
+| change an edge setting, a security rule, HSTS | `terraform/stacks/edge/settings.tf`, `rulesets.tf` | same |
+| change what a tenant's proxy enforces (headers, body cap, upstream) | `projects/<name>/sites.caddy` | pull + `caddy reload` on the box |
+| change the shared proxy or the origin firewall | `box/`, and the role under `ansible/` that transcribes it | pull + reload (`up -d` only if `compose.yaml` changed); prove the role on a throwaway host |
+| change the app host or its deploy path | `terraform/stacks/leave-impact-prod/` (a `user_data.sh.tftpl` change replaces the instance: `runbooks/replace-the-app-host.md`) | `plan`, `apply` |
+| add a tenant · rebuild the box | `runbooks/add-a-tenant.md` · `runbooks/box-rebuild.md` | — |
 
 ```
 git config core.hooksPath .githooks                      # once per clone: the fail-closed secret scan
@@ -120,7 +129,7 @@ ssh box 'cd /srv/platform && git pull --ff-only && cd box && docker compose exec
 
 CI runs only what needs no credential, over every kind of configuration here:
 gitleaks over the full history; `terraform fmt` and a per-stack `validate` with
-the lock file read-only; ShellCheck on the three scripts a host runs and on the
+the lock file read-only; ShellCheck on every shell script a host runs and on the
 cloud-init script rendered by the real `templatefile`; `ansible-playbook
 --syntax-check` with the play's collections pinned; `caddy validate` on the box
 layout with every tenant file imported and a throwaway pair where the Origin CA
@@ -139,7 +148,7 @@ committed `.example` files show the shape.
 |---|---|
 | `box/` | the shared layer on the VPS: proxy stack, global Caddyfile, origin-only firewall, the provisioning runbook |
 | `ansible/` | the same layer as five idempotent roles, `verify.sh` as the acceptance, the inventory example |
-| `projects/<name>/` | one adapter per tenant: `sites.caddy`, backup units, the contract README |
+| `projects/<name>/` | one adapter per tenant: `sites.caddy`, backup units, the contract README. `steamlens/`: the SteamLens site and its nightly backup; `leave-impact/`: the Frappe HR sites on the box (the agent's own AWS host is the stack below) |
 | `terraform/stacks/edge/` | the Cloudflare zone's contents |
 | `terraform/stacks/leave-impact-prod/` | the agent's AWS host and deploy path, plus the state bucket |
 | `runbooks/` | procedures, each written the first time it ran |

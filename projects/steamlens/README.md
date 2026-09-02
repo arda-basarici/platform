@@ -59,15 +59,24 @@ sudo apt-get install -y sqlite3 rclone
 #    (backup.sh addresses it by that name), storage type `drive`, scope
 #    `drive.file` — the token can then only touch files rclone itself
 #    created; a compromised box can burn the backups, never read the Drive.
-#    Skip client_id/secret (rclone's built-in is fine at this volume, and a
-#    self-made "testing"-mode OAuth app expires its token every 7 days).
-#    The box is headless: answer "n" to auto config, run the printed
-#    `rclone authorize "drive" ...` line on the workstation, paste the token.
-rclone config
+#    The remote rides rclone's shared client id today; that id is announced to
+#    retire during 2026, so an own OAuth client (Desktop app, Drive API, the
+#    same drive.file scope) is the planned replacement as of 2026-09-02 — this
+#    step is rewritten when the migration lands. Known trap: an OAuth app left
+#    in "testing" status expires its refresh token every 7 days.
+#    The box is headless, and the proven path is to authorize on the control
+#    node and ship the whole config (the drill found that pasting a token into
+#    `rclone config` over ssh mangles wrapped lines; runbooks/box-rebuild.md,
+#    "Drive access"):
+rclone config create gdrive drive scope drive.file     # on the control node: prints a URL; sign in, approve
+rclone lsf gdrive:steamlens-backups/daily/             # sees the existing objects, or stop here
+scp ~/.config/rclone/rclone.conf box:~/.config/rclone/rclone.conf   # the directory must exist on the box
+ssh box 'chmod 600 ~/.config/rclone/rclone.conf && rclone listremotes'   # → gdrive:
 
 # 3. Create a check at healthchecks.io (period 1 day, grace ~2 h). Its ping
-#    URL is the one value in backup.enc.env (SECRETS.md: platform-owned,
-#    encrypted to the workstation + recovery recipients, no key on the box):
+#    URL is the first of the two values in backup.enc.env (the monthly restore
+#    check adds the second, below; SECRETS.md: platform-owned, encrypted to the
+#    workstation + recovery recipients, no key on the box):
 sops projects/steamlens/backup.enc.env      # → BACKUP_PING_URL=https://hc-ping.com/<uuid>
 
 # 4. Once, in an interactive session on the box: the runtime directory,
@@ -77,16 +86,19 @@ sudo install -d -m 0750 -o arda -g arda /etc/platform/steamlens
 
 #    Then, from the workstation, every time the value changes: decrypt here,
 #    pipe over ssh, land it 0600. The checkout never holds plaintext.
+#    `tr -d '\r'`: a decrypt on a Windows workstation can carry CRLF, and a CR
+#    at the end of the URL breaks the ping with no error (found 2026-08-27).
 sops -d projects/steamlens/backup.enc.env | \
-  ssh box 'umask 077 && cat > /etc/platform/steamlens/backup.env'
+  ssh box "umask 077 && tr -d '\r' > /etc/platform/steamlens/backup.env"
 
-# 5. Install the units from the checkout, enable the timer.
-ssh box 'chmod +x /srv/platform/projects/steamlens/backup.sh \
+# 5. Install the units from the checkout, enable the timer (`-t`: sudo needs a
+#    tty to ask on; box/README.md says the same).
+ssh -t box 'chmod +x /srv/platform/projects/steamlens/backup.sh \
   && sudo cp /srv/platform/projects/steamlens/steamlens-backup.{service,timer} /etc/systemd/system/ \
   && sudo systemctl daemon-reload && sudo systemctl enable --now steamlens-backup.timer'
 
 # 6. First run, by hand, watching the journal:
-ssh box 'sudo systemctl start steamlens-backup.service \
+ssh -t box 'sudo systemctl start steamlens-backup.service \
   && journalctl -u steamlens-backup.service -n 20 --no-pager'
 ```
 

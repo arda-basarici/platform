@@ -2,7 +2,7 @@ steamlens.ardabasarici.dev {
 	# The Origin CA pair, defined once in the box Caddyfile.
 	import origin_tls
 
-	# The audit's request-body finding: the app parses a POST body into
+	# A security review of the app found that it parses a POST body into
 	# memory before any gate runs, so the effective cap sits here, in front
 	# of it — an oversized body answers 413 and never reaches the app. 16KB
 	# is roomy; the real submit body is well under 1KB.
@@ -14,7 +14,7 @@ steamlens.ardabasarici.dev {
 	# them, whichever app route answered. HSTS: 180 days, deliberately
 	# without `preload` (preload is effectively irreversible and a decision
 	# to take on its own, not by default). Note that the edge's own HSTS
-	# setting (stacks/edge/settings.tf) replaces this header on every
+	# setting (terraform/stacks/edge/settings.tf) replaces this header on every
 	# proxied response — the visitor saw max-age=86400 on 2026-08-29 — so
 	# this copy is a fallback, live only if the edge setting is removed;
 	# ARCHITECTURE, "which layer's value is live". nosniff pins declared MIME types;

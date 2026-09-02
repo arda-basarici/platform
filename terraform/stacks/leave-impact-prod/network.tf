@@ -1,8 +1,8 @@
 # One VPC, one public subnet, IPv4 only. The instance is the sole tenant and
 # Cloudflare is its only caller, so there is nothing for private subnets, NAT, or
 # IPv6 to serve yet; each would be added on a concrete need (the ephemeral-compute
-# probe the agent's DESIGN preregisters for its demo milestone is the likely one),
-# not by default.
+# experiment the leave-impact-agent repository's DESIGN preregisters for a later
+# milestone is the likely one), not by default.
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
