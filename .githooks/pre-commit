@@ -4,11 +4,14 @@
 # pass is worse than a loud stop).
 #
 # One-time per clone: git config core.hooksPath .githooks
-# Scanner: gitleaks (winget install Gitleaks.Gitleaks)
+# Scanner: gitleaks (winget install Gitleaks.Gitleaks; a release binary on Linux/WSL).
+# The file must stay executable in the index (100755): a POSIX git skips a
+# non-executable hook with only a hint, and the commit goes through unscanned.
 
 if ! command -v gitleaks >/dev/null 2>&1; then
   echo "pre-commit: gitleaks not found on PATH — refusing to commit unscanned." >&2
-  echo "Install: winget install Gitleaks.Gitleaks (then restart the shell)." >&2
+  echo "Install: winget install Gitleaks.Gitleaks on Windows; on Linux/WSL a release binary" >&2
+  echo "from github.com/gitleaks/gitleaks/releases on PATH. Then restart the shell." >&2
   exit 1
 fi
 
