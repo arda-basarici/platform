@@ -19,12 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # gitleaks scans the whole history, not the diff
+          fetch-depth: 0 # gitleaks scans every commit of the push, not one diff
 
       # Secrets: the pre-commit hook only runs where hooksPath was set, so CI is
-      # the gate that cannot be skipped. A secret pushed past a hook is still in
-      # the commits behind it, hence the full history.
-      - name: Gitleaks (full history)
+      # the gate that cannot be skipped. The action scans the pushed range
+      # (`before^..after`), so a secret in any commit behind the head is seen;
+      # the repository's `.gitleaks.toml` is picked up by gitleaks itself, the
+      # same file the hook uses.
+      - name: Gitleaks (pushed commits)
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITLEAKS_ENABLE_SUMMARY: "false"

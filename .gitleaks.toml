@@ -1,0 +1,23 @@
+# Secret shapes this repository actually handles that gitleaks' default rules
+# do not cover. Loaded by the pre-commit hook and by CI alike: gitleaks reads a
+# `.gitleaks.toml` at the scanned repository's root when no `--config` is given.
+#
+# Not here: age secret keys (`AGE-SECRET-KEY-1…`) fire the default
+# `age-secret-key` rule, verified against the pinned version; a bare origin IP
+# (the documented Cloudflare ranges would drown a generic IPv4 rule in noise).
+
+title = "platform"
+
+[extend]
+useDefault = true
+
+# A healthchecks.io ping URL is a bearer capability: whoever holds it can fake
+# a healthy signal and silence the dead-man's switch. Both forms the service
+# issues: `hc-ping.com/<check uuid>` and `hc-ping.com/<ping key>/<slug>`.
+# Placeholders such as `hc-ping.com/<uuid>` do not match (angle brackets are
+# outside the character class).
+[[rules]]
+id = "healthchecks-ping-url"
+description = "healthchecks.io ping URL (check uuid or ping-key/slug form)"
+regex = '''https?://(?:hc-ping\.com|hcping\.com)/[A-Za-z0-9_-]{20,}(?:/[A-Za-z0-9_-]+)?'''
+keywords = ["hc-ping", "hcping"]
