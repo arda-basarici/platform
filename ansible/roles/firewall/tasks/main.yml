@@ -81,9 +81,13 @@
   changed_when: false
   check_mode: false
 
-- name: Assert the chain carries the origin rules (a 443 match and a DROP)
+# The terminal rule is asserted exactly: firewall.sh builds the uplink DROP as
+# the chain's last IPv4 rule, and a DROP on another interface or not last is a
+# firewall that looks applied and isn't. The 443 family is asserted present; its
+# full count is verify.sh's job, read from the same script.
+- name: Assert the chain ends in the uplink DROP and carries the origin 443 rules
   ansible.builtin.assert:
     that:
-      - "'-j DROP' in docker_user_chain.stdout"
+      - "docker_user_chain.stdout_lines | last == '-A DOCKER-USER -i ' ~ ansible_facts['default_ipv4']['interface'] ~ ' -j DROP'"
       - "'--ctorigdstport 443' in docker_user_chain.stdout"
-    fail_msg: "DOCKER-USER does not carry the origin rules; see box/README.md, Origin firewall"
+    fail_msg: "DOCKER-USER does not end in the uplink DROP with the origin 443 rules before it; see box/README.md, Origin firewall"

@@ -63,5 +63,5 @@ if [ -n "${RESTORE_PING_URL:-}" ]; then
     curl -fsS -m 10 --retry 3 -o /dev/null "$RESTORE_PING_URL"
 fi
 
-echo "restore check ok: ${NEWEST} (${AGE_DAYS}d old, $(stat -c%s "${WORK}/restore.db") bytes) integrity ok;" \
+echo "restore check ok: ${NEWEST} (${AGE_DAYS}d old, restored db $(stat -c%s "${WORK}/restore.db") bytes uncompressed) integrity ok;" \
      "classify_cache|reviews|mentions|reports backup ${BACKUP_COUNTS} live ${LIVE_COUNTS}"
