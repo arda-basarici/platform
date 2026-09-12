@@ -12,7 +12,8 @@
 #            restart checkpoint, overwritten freely and never served.
 #   truth  — the answer key. `world-spec/` (read by the validator, at M2 the
 #            evaluator) and `truth-manifest/` (the evaluator only). No
-#            noncurrent-version expiry: history is provenance.
+#            noncurrent-version expiry: history is provenance. `access-probe/`
+#            holds the one platform-owned key (the read-denied canary, below).
 #
 # The container is platform, the content and the key layout are the
 # application's (DESIGN, the ownership line). The prefixes are the contract,
@@ -164,6 +165,28 @@ resource "aws_s3_bucket_policy" "benchmark" {
   # A policy on a bucket with Block Public Access must be applied after the
   # block exists, or S3 rejects it as potentially public during the window.
   depends_on = [aws_s3_bucket_public_access_block.benchmark]
+}
+
+# A key known to exist in the truth bucket, for the read-denial probes. S3 hides
+# existence: with ListBucket denied, a GET on an absent key returns AccessDenied
+# whether or not GetObject is granted, so every probe against an invented key
+# proves only the list denial. A GET on this key refused is the proof that
+# GetObject is denied — the application's deploy step asserts it under the
+# instance profile, the validator asserts it for itself. It sits outside the
+# final prefixes because the provider sends no `If-None-Match` (the create-only
+# deny would refuse the put); a canary under `truth-manifest/` is not possible
+# from here, so that prefix's denial is proven against a real key once a world
+# exists. Refresh reads it by HeadObject only.
+resource "aws_s3_object" "truth_read_denied_canary" {
+  bucket       = aws_s3_bucket.benchmark["truth"].id
+  key          = "access-probe/read-denied-canary"
+  content_type = "text/plain"
+  content      = <<-EOT
+    read-denied canary. This key exists so that a refused GET here proves the
+    caller lacks GetObject on the truth bucket, not merely that the key is
+    absent. Created by terraform/stacks/leave-impact-prod/benchmark_buckets.tf;
+    nothing reads its content.
+  EOT
 }
 
 output "benchmark_bucket_names" {

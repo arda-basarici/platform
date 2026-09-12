@@ -148,7 +148,7 @@ provides it. The meeting point is a short list of named values, written down onc
 | The shared Docker network `web` | platform | every application stack joins it as external |
 | Deploy role ARN (`…:role/leave-agent-deploy`) | platform: `stacks/leave-impact-prod` | application workflow `role-to-assume` |
 | The benchmark's bucket names and role ARNs (`leave-impact-world-…`, `leave-impact-truth-…`; `…:role/leave-agent-generator`, `…:role/leave-agent-validator`, trusting the repository's `benchmark` environment) | platform: `stacks/leave-impact-prod` | the generator and validator workflows, the application's world reader |
-| The benchmark's key layout (`worlds/`, `preparing/`; `world-spec/`, `truth-manifest/`; `<version>` a digest) and its write discipline (create-only, one `PutObject` with `If-None-Match: *`) | application: its layout | platform: the bucket policies and the roles' resource ARNs enforce exactly those prefixes |
+| The benchmark's key layout (`worlds/`, `preparing/`; `world-spec/`, `truth-manifest/`; `<version>` a digest) and its write discipline (create-only, one `PutObject` with `If-None-Match: *`) | application: its layout | platform: the bucket policies and the roles' resource ARNs enforce exactly those prefixes. One exception in the other direction: the truth bucket's `access-probe/read-denied-canary`, a fixed platform-owned object that gives the read-denial probes a key known to exist |
 | The instance's `Name` tag, the SSM parameter prefix (`/leave-agent/`) | platform stack | application deployment entrypoint (finds the host, reads its secrets) |
 | Durable-data path + what is and is not backed up | application: where its state lives | platform backup unit; the application README states the same |
 
