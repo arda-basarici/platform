@@ -7,7 +7,7 @@ and their reasons, as a narrative snapshot of the current design, edited in plac
 the journey is the git history. How it is built → [ARCHITECTURE.md](ARCHITECTURE.md);
 the pitch → [README.md](README.md).
 
-*Snapshot of the built extraction · last updated 2026-09-02 · the four founding
+*Snapshot of the built extraction · last updated 2026-09-12 · the four founding
 steps, the edge, the host alarms, the monthly restore check and the
 rebuild-and-restore drill have shipped; two steps stay open — the live replay of
 the playbook, and the DNSSEC chain waiting on the registrar's DS record — and
@@ -55,7 +55,7 @@ Applied to what exists:
 | The single-tenant AWS host's Caddy config (laid down by cloud-init) | platform (`stacks/leave-impact-prod`); the per-project adapter mechanism is extracted there only if that host gains a second tenant |
 | Per-project host backup units (timer + service + the script they run) | platform (`projects/<name>/`) |
 | Cloudflare DNS and edge configuration | platform |
-| AWS resources (instance, network, IAM, SSM parameters, OIDC trust, budgets, alarms) | platform |
+| AWS resources (instance, network, IAM, SSM parameters, OIDC trust, S3 buckets, budgets, alarms) | platform |
 | Terraform state and backends | platform |
 | Application image build, Dockerfile, CI | application |
 | The application's own Compose stack (steam-lens app; the Frappe bench stack) | application |
@@ -66,6 +66,18 @@ Applied to what exists:
 
 The rule of thumb behind the AWS rows: a Terraform `resource` is infrastructure; an
 SDK call is application. `aws_s3_bucket` lives here, `s3.put_object` does not.
+
+Since 2026-09-12 that rule also covers application data: the leave agent's
+benchmark keeps its generated world and the world's answer key in two buckets in
+the AWS stack, the first containers of application content the platform holds.
+The container, its policies (TLS-only, create-only on the final prefixes) and the
+roles that reach it are platform; the key layout and the bytes are the
+application's, the layout written once in the contract table. Two buckets rather
+than two prefixes because the answer key's unreachability from the application is
+the agent's load-bearing evaluation claim, and "no statement on the instance role
+names the truth bucket" is a check a reader makes in one glance. The buckets would
+move to an application-owned stack only if the layout seam turned chatty; the
+roles and the trust would stay, since they are what make the boundary enforceable.
 
 **Two borderline placements, ruled:**
 
@@ -135,6 +147,8 @@ provides it. The meeting point is a short list of named values, written down onc
 | Upstream endpoint (`steamlens-app-1:8000`, `frappe-frontend-1:8080`) | application: its Compose service name on the `web` network | platform: the stanza's `reverse_proxy` |
 | The shared Docker network `web` | platform | every application stack joins it as external |
 | Deploy role ARN (`…:role/leave-agent-deploy`) | platform: `stacks/leave-impact-prod` | application workflow `role-to-assume` |
+| The benchmark's bucket names and role ARNs (`leave-impact-world-…`, `leave-impact-truth-…`; `…:role/leave-agent-generator`, `…:role/leave-agent-validator`, trusting the repository's `benchmark` environment) | platform: `stacks/leave-impact-prod` | the generator and validator workflows, the application's world reader |
+| The benchmark's key layout (`worlds/`, `preparing/`; `world-spec/`, `truth-manifest/`; `<version>` a digest) and its write discipline (create-only, one `PutObject` with `If-None-Match: *`) | application: its layout | platform: the bucket policies and the roles' resource ARNs enforce exactly those prefixes |
 | The instance's `Name` tag, the SSM parameter prefix (`/leave-agent/`) | platform stack | application deployment entrypoint (finds the host, reads its secrets) |
 | Durable-data path + what is and is not backed up | application: where its state lives | platform backup unit; the application README states the same |
 
@@ -363,6 +377,10 @@ with their dates so that the list holds only what is open:
 
 The "deliberately absent" table above carries the structural triggers. Beyond it:
 
+- **The benchmark's evaluator role** (reads `truth-manifest/`, grades the agent
+  against the answer key): at the agent's M2 entry, when the evaluator's execution
+  boundary is known. A trust written before that would be a guess, and a wrong
+  guess there is a hole in the sealing claim.
 - **Backups for the other two databases** (Frappe's MariaDB dump unit under
   `projects/leave-impact/`, PostgreSQL on the app host) and the restore drill that
   makes a backup real: when there is data worth keeping, i.e. the leave-impact

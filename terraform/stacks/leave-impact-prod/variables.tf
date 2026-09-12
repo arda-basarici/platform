@@ -53,22 +53,35 @@ variable "cloudflare_ipv4_ranges" {
   ]
 }
 
-# The Bedrock shortlist the instance role may invoke — inference-profile IDs
-# (Frankfurt hosts current models only behind `eu.`/`global.` profiles). This is
-# the catalogue from the agent's first exploratory runs, not a choice: the choice
-# waits for the agent's model measurements on its hand-labelled evaluation set (a
-# milestone its repository's VISION names), and rows are dropped or added here
-# when it lands.
-variable "bedrock_models" {
-  description = "Inference-profile IDs the instance role may invoke."
+# The Bedrock lists, one per caller — inference-profile IDs (Frankfurt hosts
+# current models only behind `eu.`/`global.` profiles). Model access in this
+# account was opened through the console for every row below on 2026-08-26 and
+# each passed the agent's exploratory probes from the instance role; the
+# Claude 5 series stays account-gated and is not listed.
+#
+# The agent list is the catalogue the agent may pick from, not a choice: the
+# choice waits for its model measurements on the hand-labelled evaluation set (a
+# milestone its repository's VISION names). Re-cut 2026-09-09 (Sonnet 5 and Opus 5
+# dropped); rows are dropped or added here when the measurement lands.
+variable "bedrock_agent_models" {
+  description = "Inference-profile IDs the instance role (the agent) may invoke."
   type        = list(string)
   default = [
     "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
-    "eu.anthropic.claude-sonnet-5",
-    "eu.anthropic.claude-opus-5",
-    "eu.anthropic.claude-sonnet-4-6", # the Anthropic row this account can call today (2026-08-26)
+    "eu.anthropic.claude-sonnet-4-6",
     "eu.amazon.nova-lite-v1:0",
     "eu.amazon.nova-pro-v1:0",
     "eu.amazon.nova-2-lite-v1:0",
+  ]
+}
+
+# The generator's pair: the prose writer and the checker that reads its output
+# (the agent's DESIGN, the world generator). Granted to the generator role only.
+variable "bedrock_generator_models" {
+  description = "Inference-profile IDs the generator role may invoke."
+  type        = list(string)
+  default = [
+    "eu.anthropic.claude-haiku-4-5-20251001-v1:0", # the prose writer
+    "eu.amazon.nova-pro-v1:0",                     # the checker
   ]
 }

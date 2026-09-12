@@ -23,6 +23,14 @@ resource "aws_iam_openid_connect_provider" "github" {
 # nothing). The classic name-only form was the documented one and was
 # rejected by STS. The branch pin lives in the environment's deployment-branch
 # policy on GitHub (main only) alongside the required-reviewer gate.
+locals {
+  # The agent repository as GitHub's tokens name it: owner and repository, each
+  # with its numeric id. Every OIDC trust in this stack pins this one identity
+  # (the deploy role here, the benchmark roles in benchmark_roles.tf) and differs
+  # only in the environment segment that follows it.
+  github_repository = "arda-basarici@133336041/leave-impact-agent@1342572683"
+}
+
 data "aws_iam_policy_document" "deploy_assume" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -38,7 +46,7 @@ data "aws_iam_policy_document" "deploy_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:arda-basarici@133336041/leave-impact-agent@1342572683:environment:production"]
+      values   = ["repo:${local.github_repository}:environment:production"]
     }
   }
 }
