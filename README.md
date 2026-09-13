@@ -71,7 +71,7 @@ hand-made: the Cloudflare zone and the host's own construction.
 flowchart TD
     V([visitor]) --> CF["`Cloudflare edge — stacks/edge
     proxied DNS · Full (strict) · TLS ≥ 1.2 · DNSSEC
-    rate limit · exploit-path rule · Bot Fight Mode`"]
+    rate limit · exploit-path rule`"]
     CF -->|"443, Cloudflare ranges only"| BOX["`the box (netcup) — box/, ansible/
     ufw 22 only · DOCKER-USER chain · Caddy`"]
     CF -->|"443, Cloudflare ranges only"| AWS["`the app host (EC2) — stacks/leave-impact-prod

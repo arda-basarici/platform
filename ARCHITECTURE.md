@@ -29,7 +29,7 @@ Cloudflare zone. Nothing runs on both.
 flowchart TD
     V([visitor]) --> CF["`Cloudflare edge
     proxied DNS · SSL Full (strict) · TLS ≥ 1.2 · DNSSEC
-    rate limit · exploit-path rule · Bot Fight Mode`"]
+    rate limit · exploit-path rule`"]
     CF -->|"443, Cloudflare ranges only"| FW1["`the box (netcup, Debian)
     ufw: 22 only · DOCKER-USER chain
     admits Cloudflare ranges`"]
@@ -231,8 +231,9 @@ passed) with `nosniff`. One custom rule, `exploit-path noise` (blocks `.php`,
 rate-limiting rule, `client flood shed`: 300 requests / 10 s per source IP per colo
 on every proxied host, verified bots exempt, block for 10 s; a coarse ceiling on one
 client, tuned only from evidence. Endpoint-aware limits stay with the applications
-(steam-lens's `/search` relies on its own limiter). Bot Fight Mode on with JS
-detections, the AI-crawler controls at their defaults. DNSSEC requested: the zone
+(steam-lens's `/search` relies on its own limiter). Bot Fight Mode off since
+2026-09-14 (on from the zone's creation until then; the paragraph below says why),
+the AI-crawler controls at their defaults. DNSSEC requested: the zone
 is signed at Cloudflare and the DS record is the stack's `dnssec_ds` output, but a
 live read on 2026-08-29 (a DS query against the `.dev` parent) found no DS there
 and answers unvalidated, so the chain of trust is not yet complete; the registrar
@@ -256,9 +257,11 @@ UptimeRobot monitors (free tier, one account, e-mail alerts): `steamlens` as an 
 check on `/healthz` since 2026-08-10, and since 2026-08-30 keyword checks that must
 find the upstream's own body — `pong` from Frappe's `/api/method/ping` on `hr` and
 `hr-w1`, the hello page's name on `leave-agent` — every 5 minutes; a keyword
-distinguishes "the upstream answered" from "Cloudflare answered something". They
-are also the standing Bot Fight Mode observation: a machine client passing every
-check, 20 days on one hostname when the other three were added. The
+distinguishes "the upstream answered" from "Cloudflare answered something". Until
+2026-09-13 they were also read as the standing Bot Fight Mode observation, a
+machine client passing every check; they were not one. UptimeRobot is on
+Cloudflare's verified-bots list, which the mode exempts by design, so twenty green
+days said nothing about an unverified client. The
 zone's `security.txt` (RFC 9116: the contact mailbox, languages en/tr, expires
 2027-08-29 and must be renewed before then; served by Cloudflare at
 `/.well-known/security.txt` on the proxied hosts only; the provider has no resource
@@ -266,12 +269,22 @@ for it). Two Security-page insights archived as accepted risk: the unproxied CNA
 (GitHub Pages terminates its own TLS) and AI Labyrinth (nothing to protect from AI
 crawlers, and blocking them hides the portfolio from AI search).
 
-**The constraint Bot Fight Mode imposes.** On the free plan it runs across the whole
-zone, can challenge any automated client, and has no exception mechanism: a WAF skip
-rule does not bypass it. Every machine client of a proxied hostname is therefore
-tested, not assumed; the leave agent's Frappe REST probe has crossed it successfully,
-which is an observation, not a guarantee. Super Bot Fight Mode (Pro) is the first
-plan tier with exceptions, and that, not feature count, is the trigger for paying.
+**Bot Fight Mode, off since 2026-09-14.** On the free plan it runs across the whole
+zone, challenges on network reputation alone, and has no exception mechanism: no
+WAF skip, no IP allowance. On 2026-09-13 the world site's first cloud-network
+machine clients, the app instance and a GitHub-hosted runner, were answered with a
+managed challenge on their first request (Security Events: service Bot Fight Mode,
+action Managed Challenge, seven events), while the workstation passed on the same
+user agents; every earlier "machine client passed" reading had been a verified bot
+or a workstation run. A world site exists to be driven by machine clients, so a
+control that cannot tell them from scrapers is the wrong control for this zone, and
+it was turned off from code (`stacks/edge/bot_management.tf`, the resource kept so
+the state stays readable and reversible; the JS detection beacon off with it). What
+stands: the DDoS and managed WAF rulesets, the exploit-path rule, the rate limit,
+the ranges-only origins. Super Bot Fight Mode (Pro) is the first plan tier with
+exceptions; paying for it needs observed automated abuse on the zone, not a feature
+count, and the mode comes back on for the browser hostnames only if the machine
+clients leave the public edge (the private-connectivity design step).
 
 **Two tokens, by job.** A write token scoped to exactly what the stack manages (DNS,
 zone settings, zone WAF, bot management; grown one scope at a time as each resource
@@ -366,7 +379,7 @@ run, from the checkout, knows that tenant's data.
 | `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `restore-check.sh` · `steamlens-restore-check.service` · `steamlens-restore-check.timer` (monthly, read-only) · `backup.enc.env` (`BACKUP_PING_URL`, `RESTORE_PING_URL`) · README (the contract values, the backup setup, the restore check and the restore procedure) | fast |
 | `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
 | `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the alerts topic, its e-mail subscription and policy, the two status-check alarms, the adopted cost-anomaly monitor and subscription · the benchmark's world and truth buckets (versioned, TLS-only, create-only on their final prefixes) with the generator and validator OIDC roles and the instance role's world read · the state bucket itself · `user_data.sh.tftpl` | per stack |
-| `terraform/stacks/edge/` | the zone's eleven records (eight adopted, the three no-mail ones created from code) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · Bot Fight Mode · DNSSEC; the zone is a data lookup | per stack |
+| `terraform/stacks/edge/` | the zone's eleven records (eight adopted, the three no-mail ones created from code) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · the bot control (Bot Fight Mode, off since 2026-09-14) · DNSSEC; the zone is a data lookup | per stack |
 | `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md` · `replace-the-app-host.md` · `box-rebuild.md` (written during the 2026-08-30 drill); each written when first exercised | — |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
 | `scripts/check-cf-ranges.sh` | the check CI and the laptop share: the three pinned copies of Cloudflare's IPv4 ranges (the box Caddyfile, `firewall.sh`, the security group's variable) against each other and, given the published list, against it | on a range change |

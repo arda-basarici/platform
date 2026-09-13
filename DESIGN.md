@@ -232,7 +232,7 @@ traffic evidence is a guess, and the free plan's analytics keep one day of it.
 | a steam-lens Terraform stack | steam-lens acquires cloud resources | its API-managed pieces (the Cloudflare zone) are `edge`, not a per-project stack |
 | `aws-foundation` (shared AWS: the OIDC provider, shared buckets) | a second AWS stack consumes the same resource | one consumer today |
 | a `github` stack (environments, repository secrets) | there is a reason to manage them from code | none yet |
-| a paid Cloudflare plan | an automated client of a proxied hostname needs an exception from Bot Fight Mode (Super Bot Fight Mode is the first tier with one) | every machine client has passed so far — the external monitors included (read 2026-08-30: four hostnames, an HTTP check on `/healthz` for one and keyword checks matching the upstream body for the other three, passing on every check, one of them for 20 days); "more features" is not a trigger |
+| a paid Cloudflare plan | automated abuse observed on the zone (Security Analytics, a reading, not a feeling) while a machine client still needs an exception from bot control (Super Bot Fight Mode, Pro, is the first tier with one) | the earlier trigger, "a machine client needs an exception", fired on 2026-09-13 and was answered by turning Bot Fight Mode off, not by paying (the decision table below); "more features" is not a trigger |
 | edge-wide response headers (a `http_response_headers_transform` ruleset) | a header every tenant should carry that the origins do not set | `nosniff` rides on the HSTS setting; `X-Frame-Options` / `Permissions-Policy` over Frappe untested; the tenant stanzas set their own |
 | Authenticated Origin Pulls (mTLS edge → origin) | a second control on origin reachability is wanted | both origins already admit Cloudflare ranges only; defense in depth, not a hole |
 | Cloudflare Access in front of `hr-w1` | its own design step | it adds a service-to-service trust boundary (the leave agent's machine path needs a service token), not a browser login toggle |
@@ -338,6 +338,7 @@ that shaped the build:
 | CI runs `plan`, output in the pull request (first draft) | CI runs only credential-free checks; `plan` local | a CI plan needs a read identity over state and providers, and plan output leaks values into a public PR; design the identity first |
 | Every non-default edge setting into code (first inventory pass) | only deliberately set settings, found by their `modified_on` stamp | a non-default with no intent behind it is a question, not a decision; coding it would freeze an accident |
 | The rate limit as steam-lens's `/search` guard (the hand-made rule) | the zone-wide client ceiling; `/search` left to the application's own limiter | the free plan has one slot, and the edge cannot price an endpoint; the application can |
+| Bot Fight Mode on, every machine client "tested, not assumed" (the edge import) | Bot Fight Mode off, from code, 2026-09-14 | the world site's first unverified cloud-network clients (the app instance, a GitHub-hosted runner, 2026-09-13) were challenged on their first request, and the free plan has no exception. The "tested" evidence had been hollow: the monitor is a verified bot, exempt by design, and every other probe had run from the workstation. A world site exists to be driven by machine clients, so a control that cannot tell them from scrapers protects nothing the zone needs; the DDoS and managed WAF rulesets, the exploit-path rule, the rate limit and the ranges-only origins stand. Paying for the Pro tier's exception was the alternative and lost: a blunt filter on a portfolio zone is not worth a subscription until abuse is observed |
 
 ## Scope and non-goals
 
@@ -357,8 +358,9 @@ Items that entered the list below as future work and have since run, kept here
 with their dates so that the list holds only what is open:
 
 - **A host-up signal**: one external HTTPS monitor per hostname, in place
-  2026-08-30 (ARCHITECTURE, "Set by hand"); it also answered whether Bot Fight
-  Mode challenges machine clients: it does not, for this one.
+  2026-08-30 (ARCHITECTURE, "Set by hand"). It was also read as evidence that Bot
+  Fight Mode passes machine clients; it was not (UptimeRobot is a verified bot,
+  exempt by design), see the decision table.
 - **EC2 status-check alarms** with auto-recover and a subscribed recipient, in
   place 2026-08-30: one SNS topic carrying the alarms and the adopted
   cost-anomaly subscription, the budget's thresholds mailing the same address
@@ -418,7 +420,12 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
 - **Private connectivity between the hosts**, the leave agent to Frappe first: a
   design step of its own at the first cross-host call that should not ride the
   public edge, the mechanism (public edge + application auth, mTLS, WireGuard, a
-  mesh, Cloudflare's private network) chosen then. An inbound Cloudflare Tunnel was
+  mesh, Cloudflare's private network) chosen then. The 2026-09-13 challenge
+  sharpened the frame: the agent on the app host calling Frappe is that cross-host
+  call; the world generator on a GitHub-hosted runner is not a host of ours, and a
+  private path leaves it on the public edge unless the mesh admits ephemeral nodes,
+  so the candidates are compared on that too, on the secrets each adds, and on what
+  each does to the ranges-only origin clause. An inbound Cloudflare Tunnel was
   considered and dropped: it substitutes for the "443 from Cloudflare ranges"
   clause rather than adding to it, and the origin-side question reopens only if
   this design lands on Cloudflare Zero Trust.
