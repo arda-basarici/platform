@@ -21,7 +21,7 @@ edge, the two hosts (a netcup VPS and an AWS EC2 instance), the cloud resources,
 the per-project wiring that joins an application to them. One repository, owned by
 no application. Two tenants ([SteamLens](https://github.com/arda-basarici/steam-lens)
 and the [leave-impact agent](https://github.com/arda-basarici/leave-impact-agent)'s
-HR system and app host) serve on five proxied hostnames.
+HR system and app host) serve on four proxied hostnames.
 
 Every DNS record of the zone, every deliberately set edge setting and security rule,
 and every AWS resource supporting the agent is Terraform. What existed was adopted or
@@ -77,7 +77,7 @@ flowchart TD
     CF -->|"443, Cloudflare ranges only"| AWS["`the app host (EC2) — stacks/leave-impact-prod
     security group · no ssh · Caddy from cloud-init`"]
     BOX --> SL["steamlens. → SteamLens"]
-    BOX --> HR["hr. / hr-w1. / hr-w2. → Frappe HR"]
+    BOX --> HR["hr. / hr-w1. → Frappe HR"]
     AWS --> LA["leave-agent. → the agent"]
 ```
 
