@@ -465,7 +465,14 @@ first and re-put right after, then read back.
   20 % of 12 GB). Rotation is a Docker restart on the box (every site blinks) and
   an instance replacement on AWS (it lives in cloud-init), so both wait for the
   next controlled recreate or patch day; a free-space signal comes with them,
-  shaped like the backup's dead-man (ping only while space is above a threshold).
+  shaped like the backup's dead-man (ping only while space is above a threshold),
+  and it watches the data volume too. What the absence costs was read on
+  2026-09-15: the app host's root at 99 %, 134 images holding 8.95 GB, one per
+  deploy since the instance's last replacement because the deploy script never
+  pruned, and the signal was two red deploys. A one-off `docker image prune` over
+  SSM reclaimed 8.59 GB (23 % used after, the OS being 2.8 GB of it), the script
+  prunes from then on, and the 12 GB root stays: it holds no data (`/srv`, the
+  20 GB data volume, was at 1 %), and the steady state is four images.
   The box's host itself has no alarm beyond the external monitors; netcup offers
   no status-check equivalent.
 - **Replacing the app host's instance costs minutes of downtime, accepted.** A

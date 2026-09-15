@@ -56,10 +56,17 @@ aws ssm describe-instance-information --region $R --filters Key=InstanceIds,Valu
 #    LABEL leave-agent-data, and the directories from before (app pgdata proxy).
 #    A fresh format boots just as cleanly and logs the same success — this is
 #    the only check that tells the two apart.
-aws ssm send-command --region $R --instance-ids <id> --document-name AWS-RunShellScript --parameters 'commands=["tail -n 2 /var/log/leave-agent-boot.log","findmnt -no SOURCE,FSTYPE,LABEL /srv","ls /srv","docker ps --format \"{{.Names}} {{.Status}}\""]' --query Command.CommandId --output text
+#    The command list goes through a file: PowerShell 5.1 splits the inline
+#    `commands=[...]` form at its inner quotes before the CLI sees it. The CLI
+#    prints in the console codepage and aborts on a glyph it cannot map, so
+#    `chcp 65001` first and keep the host commands' output ASCII (no `--format`
+#    with quotes, `lsblk -i`); a "charmap codec" error names a position in the
+#    output and is never a credentials failure.
+'{"commands":["tail -n 2 /var/log/leave-agent-boot.log","findmnt -no SOURCE,FSTYPE,LABEL /srv","ls /srv","docker ps"]}' | Out-File -Encoding ascii "$env:TEMP/ssm-check.json"
+aws ssm send-command --region $R --instance-ids <id> --document-name AWS-RunShellScript --parameters "file://$env:TEMP/ssm-check.json" --query Command.CommandId --output text
 aws ssm get-command-invocation --region $R --command-id <cid> --instance-id <id> --query StandardOutputContent --output text
 # Expected: "=== first boot done <time> ===" · "/dev/nvme1n1 ext4 leave-agent-data"
-#           · app lost+found pgdata proxy · proxy-caddy-1 Up, proxy-hello-1 Up
+#           · app lost+found pgdata proxy · proxy-caddy-1 and proxy-hello-1 Up in the container table
 ```
 
 ```sh
