@@ -65,7 +65,7 @@ check "steamlens-restore-check.timer armed"   "1" "$(systemctl list-timers steam
 check "/etc/platform/steamlens 0750"   "750" "$(stat -c %a /etc/platform/steamlens 2>/dev/null)"
 check "sqlite3 + rclone present"       "0" "$(command -v sqlite3 >/dev/null && command -v rclone >/dev/null; echo $?)"
 
-for host in steamlens.ardabasarici.dev hr.ardabasarici.dev hr-w1.ardabasarici.dev; do
+for host in steamlens.ardabasarici.dev hr.ardabasarici.dev hr-w1.ardabasarici.dev hr-w2.ardabasarici.dev; do
     code=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "$host:443:127.0.0.1" "https://$host/" 2>/dev/null)
     case "$code" in 200|502) echo "PASS  caddy serves $host ($code)";; *) echo "FAIL  caddy serves $host: got [$code]"; fails=$((fails+1));; esac
 done

@@ -12,6 +12,7 @@ repository's `infra/` on 2026-08-27, zero-diff plan against the same state).
 |---|---|---|
 | `hr.ardabasarici.dev` | platform: Cloudflare A record (proxied) + a stanza in `sites.caddy` | the agent's configuration, the HR system's own site config |
 | `hr-w1.ardabasarici.dev` (one hostname per world version — a world is one generated organization the agent plans over; the `Host` header selects the Frappe site) | platform: A record + a stanza in `sites.caddy` | same; teardown removes the stanza with the site |
+| `hr-w2.ardabasarici.dev` (the second world site, added 2026-09-15 for the measurement world: a build site, read for its numbers and dropped afterwards, so it carries no uptime monitor) | platform: A record + a stanza in `sites.caddy` | same; the application's environment points at one world site at a time, its Frappe key pair replaced per site |
 | upstream `frappe-frontend-1:8080` | application: the bench stack's frontend service on `web` | both stanzas' `reverse_proxy` |
 | the `web` network | platform | the bench stack joins it as external |
 | no request-body cap, no proxy security headers | platform, by ruling in the stanzas: Frappe's nginx enforces its own 50m upload limit and already sends HSTS + nosniff | the application keeps sending them |
@@ -32,7 +33,7 @@ repository's `infra/` on 2026-08-27, zero-diff plan against the same state).
 
 | File | Role |
 |---|---|
-| `sites.caddy` | both stanzas: the production HR site, then world site 1 |
+| `sites.caddy` | the stanzas: the production HR site, then the world sites (`hr-w1`, `hr-w2`) |
 | `../../terraform/stacks/leave-impact-prod/` | the AWS host: network, security group, instance role, instance + EIP + data volume, OIDC deploy role, parameter names, budget, cloud-init template; the benchmark's world and truth buckets with the generator and validator roles; and the remote-state bucket both stacks use, adopted into this one |
 
 Stack commands run from the repository root with the Identity Center profile:
