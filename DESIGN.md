@@ -279,7 +279,7 @@ shipping alone, each with an acceptance stated before it started.
 | 2. Extract the box layer from steam-lens | 2026-08-27: a split, not a move; the shared layer to `box/`, the site stanzas to `projects/*/sites.caddy`, the backup units and `BACKUP_PING_URL` to `projects/steamlens/`; `deploy.sh` stayed in steam-lens (deployment entrypoint); one deploy of the proxy with the old Caddyfile as the rollback | `steamlens.`, `hr.`, `hr-w1.` answered before anything was deleted from steam-lens; the import glob verified (and corrected, the one-wildcard finding above); afterwards each application repository knows only itself |
 | 3. Move the AWS stack | 2026-08-27: `infra/` → `terraform/stacks/leave-impact-prod/`, the contract values into `projects/leave-impact/README.md`, the application workflow pointing here; then the `value_wo` migration; then (2026-08-28) the state bucket adopted into the stack | zero-diff plan for the move; the state-pull proof for the migration (ARCHITECTURE, the state map), the three production values reading back afterwards; zero-diff for the bucket |
 | 4. Ansible for the host | 2026-08-28: `box/README.md` transcribed into five roles and an acceptance script | a blank cloud host reached a passing `verify.sh` from the playbook alone |
-| 4b. The edge into code | 2026-08-28: every record, the deliberately set settings, the two hand-made rulesets and Bot Fight Mode imported; then TLS 1.2, DNSSEC, HSTS, the no-mail records applied from code | every import `N to import, 0 to add, 0 to change, 0 to destroy`, then `No changes`; every hardening applied verified live (a TLS 1.0 handshake refused; the zone signed at Cloudflare, the DS record at the `.dev` registry from 2026-09-14, seventeen days after the enable) |
+| 4b. The edge into code | 2026-08-28: every record, the deliberately set settings, the two hand-made rulesets and Bot Fight Mode imported; then TLS 1.2, DNSSEC, HSTS, the no-mail records applied from code | every import `N to import, 0 to add, 0 to change, 0 to destroy`, then `No changes`; every hardening applied verified live (a TLS 1.0 handshake refused; the zone signed at Cloudflare, the DS record at the `.dev` registry from 2026-09-14, seventeen days after the enable; HSTS raised from its one-day canary to six months on 2026-09-15, every proxied hostname read serving the new value) |
 
 The edge step was not in the original four; it entered when the extraction of the
 box made the one remaining hand-made layer conspicuous, and it followed the same
@@ -393,8 +393,6 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
   host-compromise boundary.
 - **Authenticated CI `plan`**, then apply-from-CI behind an approval gate: when a
   second person applies, or the first stops applying from a laptop.
-- **HSTS to six months** on the zone: after a canary week with nothing broken
-  (the day-long value was applied 2026-08-28).
 - **Runbooks are written the first time each is exercised, never ahead of it.**
   The four that exist (add a tenant, the test host, replace the app host, box
   rebuild and restore) came that way; the next ones (a patch day, an Origin CA

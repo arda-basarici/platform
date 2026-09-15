@@ -18,7 +18,9 @@ kept current each time it runs.
 1. **Cloudflare, from code:** a `cloudflare_dns_record` for the hostname in
    `terraform/stacks/edge/records.tf`, copied from an existing proxied A record
    (`proxied = true`, never grey, not even briefly — the origin IP would enter
-   passive-DNS archives permanently), then `plan` (exactly `1 to add`) and
+   passive-DNS archives permanently, and once the hostname has served the zone's
+   six-month HSTS header a browser that meets the Origin CA certificate directly
+   is locked out until the rule expires), then `plan` (exactly `1 to add`) and
    `apply` from the laptop. SSL mode is zone-wide (Full (strict)) and the Origin
    CA pair already covers `*.ardabasarici.dev`; nothing to issue. The dashboard
    is read-only for records: a record made by hand is a drift the next plan

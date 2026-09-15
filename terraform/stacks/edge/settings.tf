@@ -36,17 +36,22 @@ resource "cloudflare_zone_setting" "min_tls_version" {
 }
 
 # HSTS: a browser that has seen it refuses plain HTTP to the host for max_age seconds,
-# so the value is a commitment with a memory. It starts at one day and is raised (to
-# six months) once nothing has broken; no includeSubDomains (the apex is GitHub Pages
-# and does not pass the edge), no preload (irreversible in practice). nosniff rides on
-# the same setting: browsers must honour the origin's Content-Type (2026-08-28).
+# and refuses to click through a certificate error for it, so the value is a commitment
+# with a memory. Applied at one day on 2026-08-28 as the canary, raised to six months on
+# 2026-09-15 after nothing broke. The header rides only on proxied responses, so the
+# rule binds exactly the orange-cloud hostnames, and a hostname that has served it must
+# stay proxied: grey-clouding it would expose the Origin CA certificate, which browsers
+# do not trust, with no way past the error until the rule expires. No includeSubDomains
+# (the apex and www are GitHub Pages and do not pass the edge), no preload (irreversible
+# in practice). nosniff rides on the same setting: browsers must honour the origin's
+# Content-Type (2026-08-28).
 resource "cloudflare_zone_setting" "security_header" {
   zone_id    = local.zone_id
   setting_id = "security_header"
   value = {
     strict_transport_security = {
       enabled            = true
-      max_age            = 86400
+      max_age            = 15552000
       include_subdomains = false
       preload            = false
       nosniff            = true

@@ -89,8 +89,9 @@ per-tenant part of that path; everything before it is shared.
 the edge (the zone's HSTS setting with `nosniff`), a tenant's stanza (`header`
 block), and the application itself (Frappe's nginx sends its own HSTS, 2 years with
 preload). Cloudflare's setting replaces the header on every proxied response, so
-the edge's value wins: every hostname served `max-age=86400` on 2026-08-29, while
-the steamlens stanza declares 180 days and Frappe's nginx two years. Both origin
+the edge's value wins: every proxied hostname served `max-age=86400` on 2026-08-29
+and `max-age=15552000` on 2026-09-15 (the raise, after the canary), while the
+steamlens stanza declares 180 days and Frappe's nginx two years. Both origin
 copies are therefore dead in effect and kept as marked fallbacks (comments in the
 stanzas say so), live only if the edge setting were ever removed. Headers the edge
 does not set (`Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options`) pass
@@ -224,9 +225,10 @@ with a read-only inventory token and kept current by the `edge` stack's plan.
 app host's elastic IP), the portfolio site's apex and `www` CNAMEs (DNS-only; GitHub
 Pages terminates their TLS) and its two verification TXTs, and the three no-mail
 records (a null MX, SPF `-all`, DMARC reject). Settings: `ssl = strict`,
-`always_use_https`, `ipv6`, `min_tls_version = 1.2`, HSTS (`max_age` 86400 to
-start, no subdomains, no preload; raised to six months once a canary week has
-passed) with `nosniff`. One custom rule, `exploit-path noise` (blocks `.php`,
+`always_use_https`, `ipv6`, `min_tls_version = 1.2`, HSTS (six months since
+2026-09-15, after a canary at one day from 2026-08-28; no subdomains, no preload;
+it binds the proxied hostnames only, so a hostname that has served it stays
+proxied) with `nosniff`. One custom rule, `exploit-path noise` (blocks `.php`,
 `/wp-`, `/.env`, `/.git` paths; 1 of the free plan's 5 slots). The one free
 rate-limiting rule, `client flood shed`: 300 requests / 10 s per source IP per colo
 on every proxied host, verified bots exempt, block for 10 s; a coarse ceiling on one
