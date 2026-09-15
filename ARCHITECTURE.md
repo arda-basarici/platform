@@ -233,12 +233,15 @@ on every proxied host, verified bots exempt, block for 10 s; a coarse ceiling on
 client, tuned only from evidence. Endpoint-aware limits stay with the applications
 (steam-lens's `/search` relies on its own limiter). Bot Fight Mode off since
 2026-09-14 (on from the zone's creation until then; the paragraph below says why),
-the AI-crawler controls at their defaults. DNSSEC requested: the zone
-is signed at Cloudflare and the DS record is the stack's `dnssec_ds` output, but a
-live read on 2026-08-29 (a DS query against the `.dev` parent) found no DS there
-and answers unvalidated, so the chain of trust is not yet complete; the registrar
-step is pending, and the state is read from the parent, never inferred from the
-plan. The zone itself is a data lookup by name, never a managed resource.
+the AI-crawler controls at their defaults. DNSSEC complete: the zone is signed at
+Cloudflare, the DS record is the stack's `dnssec_ds` output, and a live read on
+2026-09-15 found that record at the `.dev` parent (a DS query against the registry,
+its RDAP `delegationSigned true`) with answers validating (`AD` set at Google's and
+Cloudflare's public resolvers). The chain closed by 2026-09-14, seventeen days after
+the zone was signed (2026-08-28): absent on a 2026-09-13 read, present the next
+evening. The registrar's DS submission is automatic and offers no manual step, and
+the state is read from the parent, never inferred from the plan. The zone
+itself is a data lookup by name, never a managed resource.
 
 **Cloudflare-managed, on by default, unmanaged on purpose.** The DDoS L7 ruleset (no
 override created; one would be a `ddos_l7` ruleset in code) and the network-layer

@@ -7,11 +7,11 @@ and their reasons, as a narrative snapshot of the current design, edited in plac
 the journey is the git history. How it is built → [ARCHITECTURE.md](ARCHITECTURE.md);
 the pitch → [README.md](README.md).
 
-*Snapshot of the built extraction · last updated 2026-09-12 · the four founding
-steps, the edge, the host alarms, the monthly restore check and the
-rebuild-and-restore drill have shipped; two steps stay open — the live replay of
-the playbook, and the DNSSEC chain waiting on the registrar's DS record — and
-everything after them is trigger-gated (the closing sections).*
+*Snapshot of the built extraction · last updated 2026-09-15 · the four founding
+steps, the edge (its DNSSEC chain complete since 2026-09-14), the host alarms, the
+monthly restore check and the rebuild-and-restore drill have shipped; one step stays
+open, the live replay of the playbook, and everything after it is trigger-gated
+(the closing sections).*
 
 ---
 
@@ -279,7 +279,7 @@ shipping alone, each with an acceptance stated before it started.
 | 2. Extract the box layer from steam-lens | 2026-08-27: a split, not a move; the shared layer to `box/`, the site stanzas to `projects/*/sites.caddy`, the backup units and `BACKUP_PING_URL` to `projects/steamlens/`; `deploy.sh` stayed in steam-lens (deployment entrypoint); one deploy of the proxy with the old Caddyfile as the rollback | `steamlens.`, `hr.`, `hr-w1.` answered before anything was deleted from steam-lens; the import glob verified (and corrected, the one-wildcard finding above); afterwards each application repository knows only itself |
 | 3. Move the AWS stack | 2026-08-27: `infra/` → `terraform/stacks/leave-impact-prod/`, the contract values into `projects/leave-impact/README.md`, the application workflow pointing here; then the `value_wo` migration; then (2026-08-28) the state bucket adopted into the stack | zero-diff plan for the move; the state-pull proof for the migration (ARCHITECTURE, the state map), the three production values reading back afterwards; zero-diff for the bucket |
 | 4. Ansible for the host | 2026-08-28: `box/README.md` transcribed into five roles and an acceptance script | a blank cloud host reached a passing `verify.sh` from the playbook alone |
-| 4b. The edge into code | 2026-08-28: every record, the deliberately set settings, the two hand-made rulesets and Bot Fight Mode imported; then TLS 1.2, DNSSEC, HSTS, the no-mail records applied from code | every import `N to import, 0 to add, 0 to change, 0 to destroy`, then `No changes`; every hardening applied verified live (a TLS 1.0 handshake refused; the zone signed at Cloudflare, the DS record not yet at the `.dev` registry when last read on 2026-08-29) |
+| 4b. The edge into code | 2026-08-28: every record, the deliberately set settings, the two hand-made rulesets and Bot Fight Mode imported; then TLS 1.2, DNSSEC, HSTS, the no-mail records applied from code | every import `N to import, 0 to add, 0 to change, 0 to destroy`, then `No changes`; every hardening applied verified live (a TLS 1.0 handshake refused; the zone signed at Cloudflare, the DS record at the `.dev` registry from 2026-09-14, seventeen days after the enable) |
 
 The edge step was not in the original four; it entered when the extraction of the
 box made the one remaining hand-made layer conspicuous, and it followed the same
