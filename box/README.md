@@ -208,10 +208,13 @@ cd /srv/platform && git pull --ff-only && cd box \
 # (a few seconds of downtime, all sites):
 cd /srv/platform && git pull --ff-only && cd box && docker compose up -d
 
-# Then, always: every hostname answers through the visitor path.
-curl -s -o /dev/null -w '%{http_code}\n' https://steamlens.ardabasarici.dev/healthz
-curl -s -o /dev/null -w '%{http_code}\n' https://hr.ardabasarici.dev/
-curl -s -o /dev/null -w '%{http_code}\n' https://hr-w1.ardabasarici.dev/
+# Then, always: every hostname answers through the visitor path, with a body.
+# A 200 alone proves nothing about the stanza: a host with no site block gets
+# an empty 200 (the certificate covers the name, other blocks own the port).
+# The pass is the size, not the status.
+curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://steamlens.ardabasarici.dev/healthz
+curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://hr.ardabasarici.dev/
+curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://hr-w1.ardabasarici.dev/
 ```
 
 Rollback is the previous commit: `git -C /srv/platform checkout <sha> -- box

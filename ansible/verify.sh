@@ -52,7 +52,10 @@ check "DOCKER-USER: drop the rest"       "1"  "$(iptables -S DOCKER-USER | grep 
 check "DOCKER-USER v6: drop everything"  "1"  "$(ip6tables -S DOCKER-USER | grep -c -- "^-A DOCKER-USER -i $uplink -j DROP$")"
 
 # --- Proxy: Caddy answers every hostname over the installed cert; the
-# upstream is absent by design on a bare host, so 502 is the pass.
+# upstream is absent by design on a bare host, so 502 is the pass. A 200 counts
+# only with a body: a host with no site block still gets an empty 200 (the
+# certificate covers the name, other blocks own the port), so the status alone
+# proves the edge and the certificate, not the stanza (seen live 2026-09-15).
 check "certs installed (key 0600)" "600" "$(stat -c %a /etc/platform/box/certs/ardabasarici.dev.key 2>/dev/null)"
 check "only caddy publishes a port" "box-proxy-caddy-1" "$(docker ps --format '{{.Names}} {{.Ports}}' | grep -- '->' | awk '{print $1}' | tr '\n' ' ' | sed 's/ $//')"
 # --- Backups (the remote itself is manual; a test host has none)
@@ -66,8 +69,12 @@ check "/etc/platform/steamlens 0750"   "750" "$(stat -c %a /etc/platform/steamle
 check "sqlite3 + rclone present"       "0" "$(command -v sqlite3 >/dev/null && command -v rclone >/dev/null; echo $?)"
 
 for host in steamlens.ardabasarici.dev hr.ardabasarici.dev hr-w1.ardabasarici.dev; do
-    code=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "$host:443:127.0.0.1" "https://$host/" 2>/dev/null)
-    case "$code" in 200|502) echo "PASS  caddy serves $host ($code)";; *) echo "FAIL  caddy serves $host: got [$code]"; fails=$((fails+1));; esac
+    answer=$(curl -sk -o /dev/null -w '%{http_code} %{size_download}' --resolve "$host:443:127.0.0.1" "https://$host/" 2>/dev/null)
+    case "$answer" in
+        "200 0")  echo "FAIL  caddy serves $host: empty 200, no site block for this host"; fails=$((fails+1));;
+        200\ *|502\ *) echo "PASS  caddy serves $host ($answer)";;
+        *)        echo "FAIL  caddy serves $host: got [$answer]"; fails=$((fails+1));;
+    esac
 done
 
 echo
