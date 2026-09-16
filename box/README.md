@@ -214,7 +214,6 @@ cd /srv/platform && git pull --ff-only && cd box && docker compose up -d
 # The pass is the size, not the status.
 curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://steamlens.ardabasarici.dev/healthz
 curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://hr.ardabasarici.dev/
-curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://hr-w1.ardabasarici.dev/
 curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://hr-w3.ardabasarici.dev/
 ```
 

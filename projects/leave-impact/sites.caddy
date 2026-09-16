@@ -18,14 +18,6 @@ hr.ardabasarici.dev {
 # over; README): one Frappe site per world version (ruled 2026-08-24),
 # same bench — the Host header selects the site, so each world is one stanza here
 # + one DNS record. Teardown removes the stanza with the site.
-hr-w1.ardabasarici.dev {
-	import origin_tls
-
-	reverse_proxy frappe-frontend-1:8080 {
-		header_up X-Forwarded-For {client_ip}
-	}
-}
-
 hr-w3.ardabasarici.dev {
 	import origin_tls
 

@@ -71,7 +71,7 @@ check "sqlite3 + rclone present"       "0" "$(command -v sqlite3 >/dev/null && c
 # "serves" = the stanza exists and the upstream answered: 200 with a body, the
 # upstream's own 404 (a site not yet created), or 502 (upstream down, a bare host).
 # Site health is the keyword monitors' claim, not this loop's.
-for host in steamlens.ardabasarici.dev hr.ardabasarici.dev hr-w1.ardabasarici.dev hr-w3.ardabasarici.dev; do
+for host in steamlens.ardabasarici.dev hr.ardabasarici.dev hr-w3.ardabasarici.dev; do
     answer=$(curl -sk -o /dev/null -w '%{http_code} %{size_download}' --resolve "$host:443:127.0.0.1" "https://$host/" 2>/dev/null)
     case "$answer" in
         "200 0")  echo "FAIL  caddy serves $host: empty 200, no site block for this host"; fails=$((fails+1));;

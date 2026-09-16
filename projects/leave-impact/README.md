@@ -11,8 +11,7 @@ repository's `infra/` on 2026-08-27, zero-diff plan against the same state).
 | Value | Producer | Where it is used |
 |---|---|---|
 | `hr.ardabasarici.dev` | platform: Cloudflare A record (proxied) + a stanza in `sites.caddy` | the agent's configuration, the HR system's own site config |
-| `hr-w1.ardabasarici.dev` (one hostname per world version — a world is one generated organization the agent plans over; the `Host` header selects the Frappe site) | platform: A record + a stanza in `sites.caddy` | same; teardown removes the stanza with the site. The application's environment points at one world site at a time, its Frappe key pair replaced per site; a build site (raised to be read and dropped, as `hr-w2` was on 2026-09-15) carries no uptime monitor |
-| `hr-w3.ardabasarici.dev` (the third world site, added 2026-09-16 for the golden world: the world the agent is evaluated on and later serves, so the site lives until a later golden version replaces it) | platform: A record + a stanza in `sites.caddy`; a keyword uptime monitor (`pong` from `/api/method/ping`) raised with the site, by ruling: a served site, and the first world's monitor goes at its teardown | same; the environment's URL and key pair move here before the golden run is dispatched |
+| `hr-w3.ardabasarici.dev` (one hostname per world version — a world is one generated organization the agent plans over; the `Host` header selects the Frappe site. This one is the golden world's, added 2026-09-16: the world the agent is evaluated on and later serves, so the site lives until a later golden version replaces it) | platform: A record + a stanza in `sites.caddy`; a keyword uptime monitor (`pong` from `/api/method/ping`) raised with the site and deleted with it, by ruling: a served site | same; teardown removes the stanza, the record and the monitor with the site. The application's environment points at one world site at a time, its Frappe key pair replaced per site; a build site (raised to be read and dropped, as `hr-w2` was on 2026-09-15) carries no uptime monitor |
 | upstream `frappe-frontend-1:8080` | application: the bench stack's frontend service on `web` | every stanza's `reverse_proxy` |
 | the `web` network | platform | the bench stack joins it as external |
 | no request-body cap, no proxy security headers | platform, by ruling in the stanzas: Frappe's nginx enforces its own 50m upload limit and already sends HSTS + nosniff | the application keeps sending them |
@@ -33,7 +32,7 @@ repository's `infra/` on 2026-08-27, zero-diff plan against the same state).
 
 | File | Role |
 |---|---|
-| `sites.caddy` | the stanzas: the production HR site, then the world sites (`hr-w1`, `hr-w3`) |
+| `sites.caddy` | the stanzas: the production HR site, then the world site (`hr-w3`) |
 | `../../terraform/stacks/leave-impact-prod/` | the AWS host: network, security group, instance role, instance + EIP + data volume, OIDC deploy role, parameter names, budget, cloud-init template; the benchmark's world and truth buckets with the generator and validator roles; and the remote-state bucket both stacks use, adopted into this one |
 
 Stack commands run from the repository root with the Identity Center profile:
