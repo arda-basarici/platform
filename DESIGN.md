@@ -143,7 +143,7 @@ provides it. The meeting point is a short list of named values, written down onc
 
 | Value | Producer | Consumer |
 |---|---|---|
-| Hostname (`steamlens.ardabasarici.dev`, `hr.`, `hr-w1.`, `leave-agent.`) | platform: DNS record + site stanza | application README, links |
+| Hostname (`steamlens.ardabasarici.dev`, `hr.`, `hr-w1.`, `hr-w3.`, `leave-agent.`) | platform: DNS record + site stanza | application README, links |
 | Upstream endpoint (`steamlens-app-1:8000`, `frappe-frontend-1:8080`) | application: its Compose service name on the `web` network | platform: the stanza's `reverse_proxy` |
 | The shared Docker network `web` | platform | every application stack joins it as external |
 | Deploy role ARN (`…:role/leave-agent-deploy`) | platform: `stacks/leave-impact-prod` | application workflow `role-to-assume` |
@@ -235,7 +235,7 @@ traffic evidence is a guess, and the free plan's analytics keep one day of it.
 | a paid Cloudflare plan | automated abuse observed on the zone (Security Analytics, a reading, not a feeling) while a machine client still needs an exception from bot control (Super Bot Fight Mode, Pro, is the first tier with one) | the earlier trigger, "a machine client needs an exception", fired on 2026-09-13 and was answered by turning Bot Fight Mode off, not by paying (the decision table below); "more features" is not a trigger |
 | edge-wide response headers (a `http_response_headers_transform` ruleset) | a header every tenant should carry that the origins do not set | `nosniff` rides on the HSTS setting; `X-Frame-Options` / `Permissions-Policy` over Frappe untested; the tenant stanzas set their own |
 | Authenticated Origin Pulls (mTLS edge → origin) | a second control on origin reachability is wanted | both origins already admit Cloudflare ranges only; defense in depth, not a hole |
-| Cloudflare Access in front of the world sites (`hr-w1` today) | its own design step | it adds a service-to-service trust boundary (the leave agent's machine path needs a service token), not a browser login toggle |
+| Cloudflare Access in front of the world sites (`hr-w1` and `hr-w3` today) | its own design step | it adds a service-to-service trust boundary (the leave agent's machine path needs a service token), not a browser login toggle |
 | IPv6 at the origins (v6 ranges in `trusted_proxies`, the firewalls, the security group) | an origin record becomes AAAA | Cloudflare dials an origin over the family of its record, and every origin record is an A record; a visitor's IPv6 ends at the edge (`ipv6 = on`). The box drops all forwarded v6 and the instance has no v6 address, so a v6 allowance today would admit no one. When the trigger fires, all three copies gain the `ips-v6` list together and `check-cf-ranges.sh` learns the second list |
 | more custom rules (4 of 5 free slots empty) | the 24-hour security analytics show traffic a rule would address | `cf.threat_score` is retired (always 0); a rule without evidence is a guess |
 

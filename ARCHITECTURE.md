@@ -44,7 +44,7 @@ flowchart TD
     steam-lens repo`"]
     C1 -->|"docker network web"| FR["`frappe-frontend-1
     leave-impact repo, deploy/frappe
-    hr. and hr-w1.`"]
+    hr., hr-w1. and hr-w3.`"]
     C2 -->|"docker network web"| LA["`leave-impact app + PostgreSQL
     leave-impact repo, deploy/instance
     (a hello page until the first deploy)`"]
@@ -220,8 +220,8 @@ hashes for both the Windows laptop and the Linux runner.
 Everything Cloudflare does for the zone, by who owns it. Read by API on 2026-08-28
 with a read-only inventory token and kept current by the `edge` stack's plan.
 
-**In code (`terraform/stacks/edge`).** Every record of the zone (eleven: eight
-adopted and three created from code on 2026-08-28; a second world site's record was added and removed on 2026-09-15): the four proxied A records (`steamlens.`, `hr.`, `hr-w1.` to the box; `leave-agent.` to the
+**In code (`terraform/stacks/edge`).** Every record of the zone (twelve: eight
+adopted and three created from code on 2026-08-28; a second world site's record was added and removed on 2026-09-15, the third world site's added 2026-09-16): the five proxied A records (`steamlens.`, `hr.`, `hr-w1.`, `hr-w3.` to the box; `leave-agent.` to the
 app host's elastic IP), the portfolio site's apex and `www` CNAMEs (DNS-only; GitHub
 Pages terminates their TLS) and its two verification TXTs, and the three no-mail
 records (a null MX, SPF `-all`, DMARC reject). Settings: `ssl = strict`,
@@ -257,15 +257,18 @@ these appear in code until one is changed from code.
 Two account-level notifications, both e-mail: Certificate Transparency Monitoring (a
 certificate for the domain issued by any CA other than Cloudflare's own) and the
 Universal SSL alert (issuance, renewal, validation failures); account scope sits
-outside both zone tokens, and two alert toggles do not justify a wider one. Four
+outside both zone tokens, and two alert toggles do not justify a wider one. Five
 UptimeRobot monitors (free tier, one account, e-mail alerts): `steamlens` as an HTTP
 check on `/healthz` since 2026-08-10, and since 2026-08-30 keyword checks that must
-find the upstream's own body — `pong` from Frappe's `/api/method/ping` on `hr` and
-`hr-w1`, the hello page's name on `leave-agent` — every 5 minutes; a keyword
-distinguishes "the upstream answered" from "Cloudflare answered something". A
-build site (a world site raised to be read and dropped, as `hr-w2` was on
-2026-09-15) has no monitor by ruling: short-lived, and a down `hr-w1` already
-signals the bench. Until
+find the upstream's own body — `pong` from Frappe's `/api/method/ping` on `hr`,
+`hr-w1` and (since 2026-09-16) `hr-w3`, the hello page's name on `leave-agent` —
+every 5 minutes; a keyword distinguishes "the upstream answered" from "Cloudflare
+answered something". A build site (a world site raised to be read and dropped, as
+`hr-w2` was on 2026-09-15) has no monitor by ruling: short-lived, and a down `hr-w1`
+already signals the bench. A served world site (`hr-w3`, the golden world's home)
+gets one with the site: the first world's monitor is deleted at its teardown, which
+fires when the golden world is approved, so the bench would otherwise go unwatched
+at that moment; the count returns to four then. Until
 2026-09-13 they were also read as the standing Bot Fight Mode observation, a
 machine client passing every check; they were not one. UptimeRobot is on
 Cloudflare's verified-bots list, which the mode exempts by design, so twenty green
@@ -385,9 +388,9 @@ run, from the checkout, knows that tenant's data.
 | `box/README.md` | the provisioning + hardening runbook the play transcribes; still the reference for the manual origin-pair step (the Drive OAuth is the steamlens adapter README's) | slow |
 | `ansible/` | `site.yml`, the five roles, `verify.sh`, `ansible.cfg`, the example inventory | slow |
 | `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `restore-check.sh` · `steamlens-restore-check.service` · `steamlens-restore-check.timer` (monthly, read-only) · `backup.enc.env` (`BACKUP_PING_URL`, `RESTORE_PING_URL`) · README (the contract values, the backup setup, the restore check and the restore procedure) | fast |
-| `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w1` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
+| `projects/leave-impact/` | `sites.caddy` (the `hr`, `hr-w1` and `hr-w3` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
 | `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the alerts topic, its e-mail subscription and policy, the two status-check alarms, the adopted cost-anomaly monitor and subscription · the benchmark's world and truth buckets (versioned, TLS-only, create-only on their final prefixes) with the generator and validator OIDC roles and the instance role's world read · the state bucket itself · `user_data.sh.tftpl` | per stack |
-| `terraform/stacks/edge/` | the zone's eleven records (eight adopted, the three no-mail ones created from code) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · the bot control (Bot Fight Mode, off since 2026-09-14) · DNSSEC; the zone is a data lookup | per stack |
+| `terraform/stacks/edge/` | the zone's twelve records (eight adopted, the three no-mail ones created from code, the current world site's) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · the bot control (Bot Fight Mode, off since 2026-09-14) · DNSSEC; the zone is a data lookup | per stack |
 | `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md` · `replace-the-app-host.md` · `box-rebuild.md` (written during the 2026-08-30 drill); each written when first exercised | — |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
 | `scripts/check-cf-ranges.sh` | the check CI and the laptop share: the three pinned copies of Cloudflare's IPv4 ranges (the box Caddyfile, `firewall.sh`, the security group's variable) against each other and, given the published list, against it | on a range change |

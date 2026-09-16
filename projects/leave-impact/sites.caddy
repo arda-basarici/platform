@@ -25,3 +25,11 @@ hr-w1.ardabasarici.dev {
 		header_up X-Forwarded-For {client_ip}
 	}
 }
+
+hr-w3.ardabasarici.dev {
+	import origin_tls
+
+	reverse_proxy frappe-frontend-1:8080 {
+		header_up X-Forwarded-For {client_ip}
+	}
+}

@@ -215,6 +215,7 @@ cd /srv/platform && git pull --ff-only && cd box && docker compose up -d
 curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://steamlens.ardabasarici.dev/healthz
 curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://hr.ardabasarici.dev/
 curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://hr-w1.ardabasarici.dev/
+curl -s -o /dev/null -w '%{http_code} %{size_download}\n' https://hr-w3.ardabasarici.dev/
 ```
 
 Rollback is the previous commit: `git -C /srv/platform checkout <sha> -- box
