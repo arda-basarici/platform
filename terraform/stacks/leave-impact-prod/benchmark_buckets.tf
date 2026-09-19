@@ -11,9 +11,12 @@
 #            the validator's verdicts); `preparing/` holds the generator's
 #            restart checkpoint, overwritten freely and never served.
 #   truth  — the answer key. `world-spec/` (read by the validator, at M2 the
-#            evaluator) and `truth-manifest/` (the evaluator only). No
-#            noncurrent-version expiry: history is provenance. `access-probe/`
-#            holds the one platform-owned key (the read-denied canary, below).
+#            evaluator) and `truth-manifest/` (the evaluator only); `audit/`
+#            holds the hand audit of a world (its provenance record), written
+#            by an administrator's one conditional create and named in no job
+#            role's statements. No noncurrent-version expiry: history is
+#            provenance. `access-probe/` holds the one platform-owned key (the
+#            read-denied canary, below).
 #
 # The container is platform, the content and the key layout are the
 # application's (DESIGN, the ownership line). The prefixes are the contract,
@@ -31,7 +34,7 @@ locals {
       mutable_prefix = "preparing/"
     }
     truth = {
-      final_prefixes = ["world-spec/", "truth-manifest/"]
+      final_prefixes = ["world-spec/", "truth-manifest/", "audit/"]
       mutable_prefix = null
     }
   }
