@@ -147,8 +147,8 @@ provides it. The meeting point is a short list of named values, written down onc
 | Upstream endpoint (`steamlens-app-1:8000`, `frappe-frontend-1:8080`) | application: its Compose service name on the `web` network | platform: the stanza's `reverse_proxy` |
 | The shared Docker network `web` | platform | every application stack joins it as external |
 | Deploy role ARN (`…:role/leave-agent-deploy`) | platform: `stacks/leave-impact-prod` | application workflow `role-to-assume` |
-| The benchmark's bucket names and role ARNs (`leave-impact-world-…`, `leave-impact-truth-…`; `…:role/leave-agent-generator`, `…:role/leave-agent-validator`, trusting the repository's `benchmark` environment) | platform: `stacks/leave-impact-prod` | the generator and validator workflows, the application's world reader |
-| The benchmark's key layout (`worlds/`, `preparing/`; `world-spec/`, `truth-manifest/`, `audit/`; `<version>` a digest) and its write discipline (create-only, one `PutObject` with `If-None-Match: *`) | application: its layout | platform: the bucket policies and the roles' resource ARNs enforce exactly those prefixes; `audit/` (a world's hand audit, an administrator's one conditional create) is in no role's ARNs at all. One exception in the other direction: the truth bucket's `access-probe/read-denied-canary`, a fixed platform-owned object that gives the read-denial probes a key known to exist |
+| The benchmark's bucket names and role ARNs (`leave-impact-world-…`, `leave-impact-truth-…`; `…:role/leave-agent-generator`, `…:role/leave-agent-validator`, trusting the repository's `benchmark` environment; `…:role/leave-agent-evaluator`, trusting its secretless `evaluation` environment — written 2026-09-22, once the evaluator's execution boundary was ruled a dispatched workflow, and keeping `audit/` outside its reach) | platform: `stacks/leave-impact-prod` | the generator, validator and evaluator workflows, the application's world reader and run exporter |
+| The benchmark's key layout (`worlds/`, `preparing/`, `runs/`; `world-spec/`, `truth-manifest/`, `audit/`, `evaluations/`; `<version>` a digest) and its write discipline (create-only, one `PutObject` with `If-None-Match: *`) | application: its layout | platform: the bucket policies and the roles' resource ARNs enforce exactly those prefixes; `audit/` (a world's hand audit, an administrator's one conditional create) is in no role's ARNs at all, `evaluations/` is written by the evaluator and read by no job role, and the instance's `runs/` grant is a put alone (a run's export goes to the evaluator and is never read back by the application). One exception in the other direction: the truth bucket's `access-probe/read-denied-canary`, a fixed platform-owned object that gives the read-denial probes a key known to exist |
 | The instance's `Name` tag, the SSM parameter prefix (`/leave-agent/`) | platform stack | application deployment entrypoint (finds the host, reads its secrets) |
 | Durable-data path + what is and is not backed up | application: where its state lives | platform backup unit; the application README states the same |
 
@@ -379,11 +379,6 @@ with their dates so that the list holds only what is open:
 
 The "deliberately absent" table above carries the structural triggers. Beyond it:
 
-- **The benchmark's evaluator role** (reads `truth-manifest/`, grades the agent
-  against the answer key): at the agent's M2 entry, when the evaluator's execution
-  boundary is known. A trust written before that would be a guess, and a wrong
-  guess there is a hole in the sealing claim. The truth bucket's `audit/` prefix
-  stays outside its reach unless a ruling at that point adds it.
 - **Backups for the other two databases** (Frappe's MariaDB dump unit under
   `projects/leave-impact/`, PostgreSQL on the app host) and the restore drill that
   makes a backup real: when there is data worth keeping, i.e. the leave-impact

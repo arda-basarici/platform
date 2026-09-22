@@ -9,14 +9,20 @@
 #   world  — what the application may see. `worlds/<version>/…` holds the final
 #            artifacts (manifest, scenario specs, the documents' canonical form,
 #            the validator's verdicts); `preparing/` holds the generator's
-#            restart checkpoint, overwritten freely and never served.
-#   truth  — the answer key. `world-spec/` (read by the validator, at M2 the
-#            evaluator) and `truth-manifest/` (the evaluator only); `audit/`
-#            holds the hand audit of a world (its provenance record), written
-#            by an administrator's one conditional create and named in no job
-#            role's statements. No noncurrent-version expiry: history is
-#            provenance. `access-probe/` holds the one platform-owned key (the
-#            read-denied canary, below).
+#            restart checkpoint, overwritten freely and never served; `runs/`
+#            holds the application's export of each finished run, written once
+#            by the instance (put only, no get, no list) and read by the
+#            evaluator — outside `worlds/` so the application's read surface
+#            stays the served worlds alone.
+#   truth  — the answer key. `world-spec/` (read by the validator and the
+#            evaluator) and `truth-manifest/` (the evaluator only); `evaluations/`
+#            holds the evaluator's grading of a run, written once and read by no
+#            job role — an evaluation names which claims matched the key, so it
+#            lives with the key; `audit/` holds the hand audit of a world (its
+#            provenance record), written by an administrator's one conditional
+#            create and named in no job role's statements. No noncurrent-version
+#            expiry: history is provenance. `access-probe/` holds the one
+#            platform-owned key (the read-denied canary, below).
 #
 # The container is platform, the content and the key layout are the
 # application's (DESIGN, the ownership line). The prefixes are the contract,
@@ -30,11 +36,11 @@ locals {
       # prefix is exempt and gets a short noncurrent-version expiry, since a
       # resumed generator reads only the current checkpoint and every projected
       # record overwrites it once.
-      final_prefixes = ["worlds/"]
+      final_prefixes = ["worlds/", "runs/"]
       mutable_prefix = "preparing/"
     }
     truth = {
-      final_prefixes = ["world-spec/", "truth-manifest/", "audit/"]
+      final_prefixes = ["world-spec/", "truth-manifest/", "audit/", "evaluations/"]
       mutable_prefix = null
     }
   }

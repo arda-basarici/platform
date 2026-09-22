@@ -140,10 +140,14 @@ application's.
 repository's `benchmark` environment (its own required reviewer and `main`-only
 rule, read back 2026-09-12) for two more roles: the world generator and the
 validator, whose reach is the two benchmark buckets and, for the generator, its
-pair of Bedrock models. Nothing on either host is in their path; the buckets are.
-The instance role reads the world bucket's `worlds/` prefix and holds no
-assume-role grant, so the answer key in the truth bucket is out of the
-application's reach by construction. The application's own deploy step asserts
+pair of Bedrock models; and the repository's `evaluation` environment (the same
+rules, no secrets, read back 2026-09-22) for the evaluator, whose reach is a
+run's export and the sealed truth, and whose writes are evaluations beside the
+key. Nothing on either host is in their path; the buckets are. The instance role
+reads the world bucket's `worlds/` prefix, puts a finished run's export under
+`runs/` (create-only, never read back), and holds no assume-role grant, so the
+answer key in the truth bucket is out of the application's reach by
+construction. The application's own deploy step asserts
 that negative live, under the real instance profile (DESIGN, the ownership line).
 
 **A backup.** A systemd timer on the host runs a per-tenant script from
@@ -389,7 +393,7 @@ run, from the checkout, knows that tenant's data.
 | `ansible/` | `site.yml`, the five roles, `verify.sh`, `ansible.cfg`, the example inventory | slow |
 | `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `restore-check.sh` · `steamlens-restore-check.service` · `steamlens-restore-check.timer` (monthly, read-only) · `backup.enc.env` (`BACKUP_PING_URL`, `RESTORE_PING_URL`) · README (the contract values, the backup setup, the restore check and the restore procedure) | fast |
 | `projects/leave-impact/` | `sites.caddy` (the `hr` and `hr-w3` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
-| `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the alerts topic, its e-mail subscription and policy, the two status-check alarms, the adopted cost-anomaly monitor and subscription · the benchmark's world and truth buckets (versioned, TLS-only, create-only on their final prefixes) with the generator and validator OIDC roles and the instance role's world read · the state bucket itself · `user_data.sh.tftpl` | per stack |
+| `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, parameter reads under `/leave-agent/`, Bedrock invoke on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the three SSM parameter *names* · the monthly budget · the alerts topic, its e-mail subscription and policy, the two status-check alarms, the adopted cost-anomaly monitor and subscription · the benchmark's world and truth buckets (versioned, TLS-only, create-only on their final prefixes) with the generator, validator and evaluator OIDC roles and the instance role's world read and run-export put · the state bucket itself · `user_data.sh.tftpl` | per stack |
 | `terraform/stacks/edge/` | the zone's eleven records (seven of the eight adopted, the first world site's gone with its site; the three no-mail ones created from code; the current world site's) · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · the bot control (Bot Fight Mode, off since 2026-09-14) · DNSSEC; the zone is a data lookup | per stack |
 | `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md` · `replace-the-app-host.md` · `box-rebuild.md` (written during the 2026-08-30 drill); each written when first exercised | — |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
