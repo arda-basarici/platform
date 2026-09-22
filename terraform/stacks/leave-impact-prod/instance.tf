@@ -37,8 +37,11 @@ resource "aws_vpc_security_group_egress_rule" "all" {
 
 # --- Identity: what code on the instance may do ------------------------------
 # Least privilege at the role, not the process: SSM's own channel, plus reads
-# of this project's parameters by path prefix. `ssm:GetParameter` on `*` would
-# silently grant every future secret in the account.
+# of exactly this project's parameters, by name — the statement is rendered
+# from secrets.tf's map, so the policy lists what the application can read and
+# a new parameter is a visible plan change, never a silent widening of a prefix
+# wildcard (the shape until 2026-09-22; ruled exact at the agent's M2 entry).
+# `ssm:GetParameter` on `*` would grant every future secret in the account.
 data "aws_iam_policy_document" "instance_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -62,8 +65,8 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
 data "aws_iam_policy_document" "instance_secrets" {
   statement {
     sid       = "ReadProjectParameters"
-    actions   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
-    resources = ["arn:aws:ssm:eu-central-1:${data.aws_caller_identity.current.account_id}:parameter/leave-agent/*"]
+    actions   = ["ssm:GetParameter", "ssm:GetParameters"]
+    resources = [for p in local.parameters : "arn:aws:ssm:eu-central-1:${data.aws_caller_identity.current.account_id}:parameter${p.name}"]
   }
 }
 
