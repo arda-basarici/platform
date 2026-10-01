@@ -142,13 +142,14 @@ rule, read back 2026-09-12) for two more roles: the world generator and the
 validator, whose reach is the two benchmark buckets and, for the generator, its
 pair of Bedrock models; and the repository's `evaluation` environment (the same
 rules, no secrets, read back 2026-09-22) for the evaluator, whose reach is a
-run's export and the sealed truth, and whose writes are evaluations beside the
-key. Nothing on either host is in their path; the buckets are. The instance role
-reads the world bucket's `worlds/` prefix, puts a finished run's export under
-`runs/` (create-only, never read back), and holds no assume-role grant, so the
-answer key in the truth bucket is out of the application's reach by
-construction. The application's own deploy step asserts
-that negative live, under the real instance profile (DESIGN, the ownership line).
+run's export, the sealed truth and the scenario specs of the world it grades
+(the one object it reads under `worlds/`), and whose writes are evaluations
+beside the key. Nothing on either host is in their path; the buckets are. The
+instance role reads the world bucket's `worlds/` prefix, puts a finished run's
+export under `runs/` (create-only, never read back), and holds no assume-role
+grant, so the answer key in the truth bucket is out of the application's reach
+by construction. The application's own deploy step asserts that negative live,
+under the real instance profile (DESIGN, the ownership line).
 
 **A backup.** A systemd timer on the host runs a per-tenant script from
 `projects/<name>/`. steam-lens's takes a WAL-safe `sqlite3 .backup`, integrity-checks

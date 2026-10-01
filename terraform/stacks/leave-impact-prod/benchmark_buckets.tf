@@ -13,7 +13,8 @@
 #            holds the application's export of each finished run, written once
 #            by the instance (put only, no get, no list) and read by the
 #            evaluator — outside `worlds/` so the application's read surface
-#            stays the served worlds alone.
+#            stays the served worlds alone. Of `worlds/` the evaluator reads
+#            the scenario specs alone, to prove the world it grades.
 #   truth  — the answer key. `world-spec/` (read by the validator and the
 #            evaluator) and `truth-manifest/` (the evaluator only); `evaluations/`
 #            holds the evaluator's grading of a run, written once and read by no

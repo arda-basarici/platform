@@ -163,6 +163,15 @@ resource "aws_iam_role_policy" "validator" {
 # that the evaluator never re-reads a live system. No get on what it wrote — the
 # put's response carries the version id it records. `audit/` stays outside its
 # reach (DESIGN's ruling, unchanged at M2).
+#
+# Of `worlds/` it reads one object per version, the scenario specs: a world's
+# version is the digest over the world spec, the scenario specs and the truth
+# manifest, so proving a world before grading against it takes that file's
+# bytes. The application reads the same object, so the grant reaches nothing
+# the application cannot already see; the manifest, the documents and the
+# verdicts stay outside it, and there is no list. In IAM a `*` also matches `/`,
+# so the pattern would match a deeper key ending in that name. The layout has
+# none, and the validator's verdict pattern is loose the same way.
 data "aws_iam_policy_document" "evaluator" {
   statement {
     sid       = "ListTheRunExports"
@@ -178,6 +187,11 @@ data "aws_iam_policy_document" "evaluator" {
     sid       = "ReadRunExports"
     actions   = ["s3:GetObject", "s3:GetObjectVersion"]
     resources = ["${local.world_bucket_arn}/runs/*"]
+  }
+  statement {
+    sid       = "ReadTheScenarioSpecs"
+    actions   = ["s3:GetObject", "s3:GetObjectVersion"]
+    resources = ["${local.world_bucket_arn}/worlds/*/scenario-specs.json"]
   }
   statement {
     sid       = "ReadTheTruth"
