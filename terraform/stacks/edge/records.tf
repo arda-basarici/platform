@@ -43,6 +43,15 @@ resource "cloudflare_dns_record" "hr_w3" {
   ttl     = 1
 }
 
+resource "cloudflare_dns_record" "hr_w4" {
+  zone_id = local.zone_id
+  name    = "hr-w4.${var.zone_name}"
+  type    = "A"
+  content = var.box_origin_ip
+  proxied = true
+  ttl     = 1
+}
+
 # --- the AWS app host: the leave-impact agent -------------------------------------
 
 resource "cloudflare_dns_record" "leave_agent" {
