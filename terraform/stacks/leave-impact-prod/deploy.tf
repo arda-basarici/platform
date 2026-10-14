@@ -52,8 +52,9 @@ data "aws_iam_policy_document" "deploy_assume" {
 }
 
 resource "aws_iam_role" "deploy" {
-  name               = "leave-agent-deploy"
-  assume_role_policy = data.aws_iam_policy_document.deploy_assume.json
+  name                 = "leave-agent-deploy"
+  assume_role_policy   = data.aws_iam_policy_document.deploy_assume.json
+  max_session_duration = 7200 # as the benchmark roles: the run workflows poll a sent command of up to an hour inside the job's own credentials, and a session that ends mid-poll turns every later read into an expired-token error (2026-10-14)
 }
 
 # Permissions: find the app host by tag and run one document on it. The
