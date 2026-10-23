@@ -31,9 +31,9 @@ fresh one and drilled end to end.
 
 The honest caveats: a single operator applies from a laptop; the live VPS was built by
 the runbook the play transcribes and has not yet been replayed by it (compared in
-check mode on 2026-08-30: ten differences, each explained); and only one of three
-databases has a backup, the other two holding regenerable placeholder data until the
-agent's first generated world is data worth keeping.
+check mode on 2026-08-30: ten differences, each explained); and two of three
+databases have a backup, the third (Frappe's MariaDB) holding a world regenerable at a
+day's cost until one is worth more than that.
 
 > [!IMPORTANT]
 > **First rebuild-and-restore drill (2026-08-30): blank host and blank control node →

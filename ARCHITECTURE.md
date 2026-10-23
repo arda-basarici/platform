@@ -12,7 +12,8 @@ Terraform stacks adopted zero-diff (2026-08-27 and 2026-08-28), the box playbook
 proven on a blank host (2026-08-28), compared against the live box in check mode
 (2026-08-30, ten differences, all classified) and drilled end to end the same day
 (blank host and control node to SteamLens serving restored data,
-`runbooks/box-rebuild.md`); the SteamLens backup restore-checked monthly by a timer.
+`runbooks/box-rebuild.md`); the SteamLens backup restore-checked monthly by a timer;
+the app host's PostgreSQL dumped nightly to S3 since 2026-10-23, with the same monthly check.
 The live box has not yet been replayed by the playbook; the restraint list at the
 end carries what is deliberately not done.*
 
@@ -161,15 +162,31 @@ integrity-checks it and compares four table counts with the live store
 (`restore-check.sh`), pinging its own dead-man only on a pass. Backups
 exclude deployment secret material by construction (`.env`, certificates, Caddy
 state: each regenerable from the repositories or the dashboard); the database
-backups themselves are sensitive data and are treated as such. This is the only
-backup that exists: Frappe's MariaDB and the app host's PostgreSQL have none (the
+backups themselves are sensitive data and are treated as such.
+
+The app host's PostgreSQL has the same shape since 2026-10-23, in the host's own
+idioms (`projects/leave-impact/backup.sh`): a nightly `pg_dump` in the custom format,
+taken inside a `REPEATABLE READ` transaction that also reads the application's
+`ledger_capture` view on the same exported snapshot, so the figures the restore
+check compares and the dump describe one instant; a `pg_restore --list` preflight;
+one conditional `PutObject` (`If-None-Match: *`) into the stack's backup bucket, with
+S3's own SHA-256 verified on upload and the digest and capture as object metadata.
+The bucket refuses overwrite for every principal and the instance role holds put and
+get on it, no list and no delete, so the host can destroy nothing there; the
+lifecycle prunes (seven dailies, four weeklies); a real recovery reads with an
+administrator identity. On the first of the month the restore check fetches last
+night's object, verifies its digest, restores it into a scratch database on the same
+service and hands the capture to the application's own verification command, which
+is the verdict. Both scripts run as root from a platform checkout on the data
+volume, installed by cloud-init, and read their ping URLs from Parameter Store at
+run time; each pings only on success. Frappe's MariaDB on the box has no backup (the
 restraint list, below, carries the trigger).
 
 **An alert.** Three channels, each for what it can actually see. From outside: the
 five UptimeRobot monitors (below, "Set by hand") say whether each hostname's
-upstream answers. From the box: the backup's dead-man's switch on healthchecks.io
-says whether last night's run happened (and, monthly, whether the backup still
-restores). From AWS: one SNS topic (`leave-impact-alerts`, one confirmed e-mail
+upstream answers. From the hosts: four dead-man's switches on healthchecks.io, a
+nightly and a monthly per backed-up database, say whether last night's run happened
+(and, monthly, whether the backup still restores). From AWS: one SNS topic (`leave-impact-alerts`, one confirmed e-mail
 subscriber) receives the alarms and the anomaly findings — two CloudWatch alarms on the app host's status checks (a *system*
 check failure recovers the instance onto healthy hardware, same id, EIP and volumes,
 and notifies; an *instance* check failure, the OS itself, only notifies, since an
@@ -394,8 +411,8 @@ run, from the checkout, knows that tenant's data.
 | `box/README.md` | the provisioning + hardening runbook the play transcribes; still the reference for the manual origin-pair step (the Drive OAuth is the steamlens adapter README's) | slow |
 | `ansible/` | `site.yml`, the five roles, `verify.sh`, `ansible.cfg`, the example inventory | slow |
 | `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `restore-check.sh` · `steamlens-restore-check.service` · `steamlens-restore-check.timer` (monthly, read-only) · `backup.enc.env` (`BACKUP_PING_URL`, `RESTORE_PING_URL`) · README (the contract values, the backup setup, the restore check and the restore procedure) | fast |
-| `projects/leave-impact/` | `sites.caddy` (the `hr`, `hr-w3` and `hr-w4` stanzas) · README (the contract values, including the deploy role ARN, the instance tag, and the SSM prefix) | fast |
-| `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, reads of the eight named `/leave-agent/` parameters, Bedrock invoke and token count on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the GitHub OIDC provider + deploy role · the eight SSM parameter *names* (three host secrets, five read-only vendor principals for the investigator) · the monthly budget · the alerts topic, its e-mail subscription and policy, the two status-check alarms, the adopted cost-anomaly monitor and subscription · the benchmark's world and truth buckets (versioned, TLS-only, create-only on their final prefixes) with the generator, validator and evaluator OIDC roles and the instance role's world read and run-export put · the state bucket itself · `user_data.sh.tftpl` | per stack |
+| `projects/leave-impact/` | `sites.caddy` (the `hr`, `hr-w3` and `hr-w4` stanzas) · `backup.sh` · `leave-impact-backup.service` · `leave-impact-backup.timer` · `restore-check.sh` · `leave-impact-restore-check.service` · `leave-impact-restore-check.timer` (the app host's PostgreSQL; installed by cloud-init from the host's checkout, root-run) · README (the contract values, including the deploy role ARN, the instance tag, the SSM prefix, the backup bucket and the database coordinates) | fast |
+| `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, reads of the ten named `/leave-agent/` parameters, put and get on the backup bucket, Bedrock invoke and token count on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the backup bucket (versioned, create-only for every principal, lifecycle-pruned to seven dailies and four weeklies) · the GitHub OIDC provider + deploy role · the ten SSM parameter *names* (three host secrets, five read-only vendor principals for the investigator) · the monthly budget · the alerts topic, its e-mail subscription and policy, the two status-check alarms, the adopted cost-anomaly monitor and subscription · the benchmark's world and truth buckets (versioned, TLS-only, create-only on their final prefixes) with the generator, validator and evaluator OIDC roles and the instance role's world read and run-export put · the state bucket itself · `user_data.sh.tftpl` | per stack |
 | `terraform/stacks/edge/` | the zone's twelve records (seven of the eight adopted, the first world site's gone with its site; the three no-mail ones created from code; the two world sites') · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · the bot control (Bot Fight Mode, off since 2026-09-14) · DNSSEC; the zone is a data lookup | per stack |
 | `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md` · `replace-the-app-host.md` · `box-rebuild.md` (written during the 2026-08-30 drill); each written when first exercised | — |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
@@ -451,10 +468,10 @@ first and re-put right after, then read back.
   adapter is extracted there only if a second tenant arrives (DESIGN, the ownership
   table). The Caddyfile flip from the hello page to the app, when its first HTTP
   surface lands, happens in that stack.
-- **No backup for Frappe's MariaDB or the app host's PostgreSQL.** The trigger is
-  data worth keeping: the leave-impact agent's first generated world (the
-  simulated organization it plans over). Until then a
-  dump unit protects placeholder data, and its restore drill would drill nothing.
+- **No backup for Frappe's MariaDB.** The trigger is data worth keeping: a world
+  site whose loss is not a day's regeneration. The golden world is regenerable at
+  that cost, so the demo milestone did not require it. (The app host's PostgreSQL
+  left this list on 2026-10-23, at the same milestone's entry ruling.)
 - **The live box has not been replayed by the playbook.** It was built by the
   runbook the play transcribes and verified by the same checks. The check-mode
   comparison ran on 2026-08-30 (ten differences, all explained; `verify.sh` 23/23)

@@ -149,7 +149,7 @@ provides it. The meeting point is a short list of named values, written down onc
 | Deploy role ARN (`…:role/leave-agent-deploy`) | platform: `stacks/leave-impact-prod` | application workflow `role-to-assume` |
 | The benchmark's bucket names and role ARNs (`leave-impact-world-…`, `leave-impact-truth-…`; `…:role/leave-agent-generator`, `…:role/leave-agent-validator`, trusting the repository's `benchmark` environment; `…:role/leave-agent-evaluator`, trusting its secretless `evaluation` environment — written 2026-09-22, once the evaluator's execution boundary was ruled a dispatched workflow, and keeping `audit/` outside its reach) | platform: `stacks/leave-impact-prod` | the generator, validator and evaluator workflows, the application's world reader and run exporter |
 | The benchmark's key layout (`worlds/`, `preparing/`, `runs/`; `world-spec/`, `truth-manifest/`, `audit/`, `evaluations/`; `<version>` a digest) and its write discipline (create-only, one `PutObject` with `If-None-Match: *`) | application: its layout | platform: the bucket policies and the roles' resource ARNs enforce exactly those prefixes; `audit/` (a world's hand audit, an administrator's one conditional create) is in no role's ARNs at all, `evaluations/` is written by the evaluator and read by no job role, and the instance's `runs/` grant is a put alone (a run's export goes to the evaluator and is never read back by the application). One exception in the other direction: the truth bucket's `access-probe/read-denied-canary`, a fixed platform-owned object that gives the read-denial probes a key known to exist |
-| The instance's `Name` tag, the SSM parameter names under `/leave-agent/` (eight; the instance role reads exactly those, rendered from one map, since 2026-09-22 — a prefix wildcard before) | platform stack | application deployment entrypoint and composition root (find the host, read the secrets and the investigator's read-only vendor principals by name) |
+| The instance's `Name` tag, the SSM parameter names under `/leave-agent/` (ten; the instance role reads exactly those, rendered from one map, since 2026-09-22 — a prefix wildcard before) | platform stack | application deployment entrypoint and composition root (find the host, read the secrets and the investigator's read-only vendor principals by name) |
 | Durable-data path + what is and is not backed up | application: where its state lives | platform backup unit; the application README states the same |
 
 Most values flow platform → application. Application-owned topology and storage
@@ -379,10 +379,13 @@ with their dates so that the list holds only what is open:
 
 The "deliberately absent" table above carries the structural triggers. Beyond it:
 
-- **Backups for the other two databases** (Frappe's MariaDB dump unit under
-  `projects/leave-impact/`, PostgreSQL on the app host) and the restore drill that
-  makes a backup real: when there is data worth keeping, i.e. the leave-impact
-  agent's first generated world (the simulated organization it plans over).
+- **A backup for Frappe's MariaDB** (a dump unit under `projects/leave-impact/`)
+  and the restore drill that makes it real: when a world site holds data worth more
+  than a day's regeneration. The app host's PostgreSQL left this bullet on
+  2026-10-23, at the leave-impact agent's demo-milestone entry (its DESIGN names the
+  demonstrated restore as that milestone's exit): a nightly dump by conditional
+  create into a platform-owned bucket, the monthly check verified by the
+  application's own command, and the instance able to destroy none of it.
 - **A platform-box age recipient**, so the box decrypts its own files, and Frappe's
   box `.env` onto SOPS with its own runtime recipient: at the next touch of the
   box's or Frappe's secrets, as its own step, since the change moves the

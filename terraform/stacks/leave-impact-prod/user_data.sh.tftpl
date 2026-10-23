@@ -125,4 +125,32 @@ EOF
 
 cd "$DATA_MNT/proxy" && docker compose up -d
 docker compose ps
+
+# --- The platform checkout and the backup units -------------------------------
+# The host runs the platform's own scripts from a checkout on the data volume,
+# as the box does from /srv/platform: cloned by the first host, pulled by every
+# replacement, so the units and the scripts they run are the repository's at
+# boot (a change under projects/leave-impact/ reaches the host by a pull and a
+# daemon-reload, no replacement). The units: a nightly pg_dump of the
+# application's PostgreSQL to this stack's backup bucket and a monthly restore
+# check, root-run oneshots on timers; their one config value, the bucket's name,
+# is the stack's output rendered into their environment file. Both timers are
+# enabled here; a dead-man is armed only once its ping URL is put.
+dnf install -y git
+if [ -d "$DATA_MNT/platform/.git" ]; then
+  git -C "$DATA_MNT/platform" pull --ff-only
+else
+  git clone https://github.com/arda-basarici/platform.git "$DATA_MNT/platform"
+fi
+install -d -m 0700 "$DATA_MNT/backups"
+install -d -m 0755 /etc/platform/leave-impact
+printf 'BACKUP_BUCKET=%s\n' "${backup_bucket}" > /etc/platform/leave-impact/backup.env
+install -m 0644 "$DATA_MNT/platform/projects/leave-impact/leave-impact-backup.service" \
+  "$DATA_MNT/platform/projects/leave-impact/leave-impact-backup.timer" \
+  "$DATA_MNT/platform/projects/leave-impact/leave-impact-restore-check.service" \
+  "$DATA_MNT/platform/projects/leave-impact/leave-impact-restore-check.timer" \
+  /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now leave-impact-backup.timer leave-impact-restore-check.timer
+systemctl list-timers --no-pager 'leave-impact-*'
 echo "=== first boot done $(date -u +%FT%TZ) ==="

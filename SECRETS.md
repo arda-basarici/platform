@@ -43,7 +43,7 @@ consumer runs.
 | Secret class | Owner | Store |
 |---|---|---|
 | proxy TLS private material (Cloudflare Origin CA pairs) | platform | host-native: SSM on AWS, the box's `certs/` (re-issuable from the dashboard) |
-| backup credentials (rclone token, the dead-man's-switch URL) | platform | the platform-owned SOPS file (today's recipients: workstation + recovery); the rclone token itself is the host's rclone config, written by the manual OAuth step |
+| backup credentials (rclone token, the dead-man's-switch URLs) | platform | on the box, the platform-owned SOPS file (today's recipients: workstation + recovery); the rclone token itself is the host's rclone config, written by the manual OAuth step. On the AWS host, the host's own idiom: SSM parameters whose names the stack owns, read by the backup scripts at run time |
 | deploy-boundary credentials (the forced-command ssh key) | platform | GitHub environment secret |
 | application API credentials | the application | SOPS or SSM by host |
 | application admin tokens | the application | SOPS or SSM by host |

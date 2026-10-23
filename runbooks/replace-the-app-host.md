@@ -9,18 +9,27 @@ IP moves with it, so no DNS changes. First exercised 2026-08-29 for the Caddy
 client-IP change; kept current each time it runs.
 
 What is down: everything on the host, from the destroy until first boot finishes
-(observed: 84 s of first boot, about three minutes end to end). Today that is a
-hello page; once the application is deployed it is the application, and the
-next approved deploy from the agent repository puts it back (a replaced instance
-serves the hello page until then). Choose the moment accordingly.
+(observed: 84 s of first boot, about three minutes end to end), and then the
+application until the next approved deploy from the agent repository lands it
+again: a replaced instance serves the hello page until then (the data volume,
+with PostgreSQL's data, the deploy marker and the platform checkout, survives).
+Choose the moment accordingly, and have the agent side dispatch its deploy right
+after.
 
 ## Before the apply
 
 ```powershell
 $env:AWS_PROFILE = "leave-impact"
+# 0. A backup first (since 2026-10-23): the nightly unit run by hand over SSM and
+#    its "backup ok" line read back. The data volume survives a replacement by
+#    design; the object that exists before the destroy is the recovery if the
+#    attachment does not.
+#    (the send-command shape is step 4 below; the command list is
+#     ["systemctl start leave-impact-backup.service","journalctl -u leave-impact-backup.service -n 3 --no-pager"])
 # 1. The plan says exactly this and nothing more: aws_instance.app "must be
 #    replaced" (user_data forces replacement), aws_volume_attachment.data
-#    replaced, aws_eip.app updated in-place. The aws_ebs_volume is NOT in it.
+#    replaced, aws_eip.app and the two status-check alarms (they key on the
+#    instance id) updated in-place. The aws_ebs_volume is NOT in it.
 terraform -chdir=terraform/stacks/leave-impact-prod plan
 # 2. The three parameters the boot script polls are present (versions, no values):
 aws ssm describe-parameters --region eu-central-1 --parameter-filters "Key=Path,Values=/leave-agent/" --query 'Parameters[].[Name,Version]' --output text
@@ -40,7 +49,7 @@ a mount that failed, not a pass — the output names the SANs of the pair it rea
 
 ```powershell
 terraform -chdir=terraform/stacks/leave-impact-prod apply
-# Expected: Apply complete! Resources: 2 added, 1 changed, 2 destroyed.
+# Expected: Apply complete! Resources: 2 added, 3 changed, 2 destroyed.
 ```
 
 ## After the apply, in order — each answers a different question
@@ -62,11 +71,14 @@ aws ssm describe-instance-information --region $R --filters Key=InstanceIds,Valu
 #    `chcp 65001` first and keep the host commands' output ASCII (no `--format`
 #    with quotes, `lsblk -i`); a "charmap codec" error names a position in the
 #    output and is never a credentials failure.
-'{"commands":["tail -n 2 /var/log/leave-agent-boot.log","findmnt -no SOURCE,FSTYPE,LABEL /srv","ls /srv","docker ps"]}' | Out-File -Encoding ascii "$env:TEMP/ssm-check.json"
+'{"commands":["tail -n 2 /var/log/leave-agent-boot.log","findmnt -no SOURCE,FSTYPE,LABEL /srv","ls /srv","docker ps","systemctl list-timers --no-pager leave-impact-*","cat /etc/platform/leave-impact/backup.env"]}' | Out-File -Encoding ascii "$env:TEMP/ssm-check.json"
 aws ssm send-command --region $R --instance-ids <id> --document-name AWS-RunShellScript --parameters "file://$env:TEMP/ssm-check.json" --query Command.CommandId --output text
 aws ssm get-command-invocation --region $R --command-id <cid> --instance-id <id> --query StandardOutputContent --output text
 # Expected: "=== first boot done <time> ===" · "/dev/nvme1n1 ext4 leave-agent-data"
-#           · app lost+found pgdata proxy · proxy-caddy-1 and proxy-hello-1 Up in the container table
+#           · app backups lost+found pgdata platform proxy · proxy-caddy-1 and proxy-hello-1 Up in the container table
+#           · the two leave-impact timers listed with a next run · BACKUP_BUCKET=leave-impact-backup-<account>
+#    The platform checkout is what the host pulled from GitHub main at boot: a change
+#    under projects/leave-impact/ that is not pushed is not on the host.
 ```
 
 ```sh

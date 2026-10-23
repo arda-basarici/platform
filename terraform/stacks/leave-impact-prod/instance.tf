@@ -126,6 +126,7 @@ resource "aws_instance" "app" {
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     app_hostname           = var.app_hostname
     cloudflare_ipv4_ranges = var.cloudflare_ipv4_ranges
+    backup_bucket          = aws_s3_bucket.backup.bucket
   })
   user_data_replace_on_change = true
 
