@@ -1,0 +1,11 @@
+# Nightly at 03:30 UTC (the instance's clock) — the quiet hours. Persistent
+# runs a missed backup at the next boot instead of skipping the day.
+[Unit]
+Description=leave-impact nightly backup timer
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

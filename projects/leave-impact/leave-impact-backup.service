@@ -1,0 +1,16 @@
+# The oneshot the backup timer fires; also runnable by hand for a verified
+# first run: systemctl start leave-impact-backup.service
+[Unit]
+Description=leave-impact nightly PostgreSQL backup to S3
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Root: the host has no login user (SSM only), the deploy runs as root, and the
+# script drives the Docker socket. The ping URL is not here: the script reads
+# it from Parameter Store at run time, the host's secrets idiom. The file
+# carries the bucket's name, rendered by cloud-init from the stack's output.
+EnvironmentFile=/etc/platform/leave-impact/backup.env
+ExecStart=/srv/platform/projects/leave-impact/backup.sh

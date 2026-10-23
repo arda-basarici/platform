@@ -1,0 +1,14 @@
+# The oneshot the restore-check timer fires; runnable by hand for a verified
+# first run: systemctl start leave-impact-restore-check.service
+[Unit]
+Description=leave-impact monthly backup restore check
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Root, as the backup service; the same environment file (one tenant, one
+# file), the restore ping URL read from Parameter Store at run time.
+EnvironmentFile=/etc/platform/leave-impact/backup.env
+ExecStart=/srv/platform/projects/leave-impact/restore-check.sh
