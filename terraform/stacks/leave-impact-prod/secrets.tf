@@ -34,6 +34,13 @@ locals {
     jira_token                  = { name = "/leave-agent/jira-token", type = "SecureString" }
     jira_email                  = { name = "/leave-agent/jira-email", type = "String" }
     google_authorized_user_json = { name = "/leave-agent/google-authorized-user-json", type = "SecureString" } # client id, client secret, refresh token: well inside the standard tier's 4 KB
+    # The backup units' dead-man ping URLs (healthchecks.io; a bearer capability,
+    # so the secret class, SECRETS.md). Platform-owned: the backup is a platform
+    # operation on the tenant's data, as on the box, where the same two ride the
+    # tenant's SOPS file; here they ride the host's own secrets idiom and the
+    # scripts read them at run time, nothing on disk. Put by the platform's owner.
+    backup_ping_url  = { name = "/leave-agent/backup-ping-url", type = "SecureString" }
+    restore_ping_url = { name = "/leave-agent/restore-ping-url", type = "SecureString" }
   }
 }
 
