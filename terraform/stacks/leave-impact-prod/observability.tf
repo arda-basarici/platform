@@ -113,7 +113,13 @@ resource "aws_cloudwatch_metric_alarm" "status_check" {
   evaluation_periods  = 2
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
-  treat_missing_data  = "breaching" # no datapoints at all is the worst case, not a quiet one
+  # Missing data is a stopped, terminated or just-launched instance, never a
+  # failed check (a failing check publishes 1, it does not go silent). As
+  # "breaching" this fired on the 2026-10-23 replacement: the alarm re-pointed
+  # to a one-minute-old instance with no datapoints yet, went to ALARM, and its
+  # recover action hard-reset the host in the middle of first boot, losing every
+  # unflushed write (zero-length unit files, a corrupt checkout).
+  treat_missing_data = "notBreaching"
 
   alarm_actions = each.value.actions
   ok_actions    = [aws_sns_topic.alerts.arn]

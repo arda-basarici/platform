@@ -71,10 +71,13 @@ aws ssm describe-instance-information --region $R --filters Key=InstanceIds,Valu
 #    `chcp 65001` first and keep the host commands' output ASCII (no `--format`
 #    with quotes, `lsblk -i`); a "charmap codec" error names a position in the
 #    output and is never a credentials failure.
-'{"commands":["tail -n 2 /var/log/leave-agent-boot.log","findmnt -no SOURCE,FSTYPE,LABEL /srv","ls /srv","docker ps","systemctl list-timers --no-pager leave-impact-*","cat /etc/platform/leave-impact/backup.env"]}' | Out-File -Encoding ascii "$env:TEMP/ssm-check.json"
+'{"commands":["tail -n 2 /var/log/leave-agent-boot.log","journalctl --list-boots --no-pager","findmnt -no SOURCE,FSTYPE,LABEL /srv","ls /srv","docker ps","systemctl list-timers --no-pager leave-impact-*","cat /etc/platform/leave-impact/backup.env"]}' | Out-File -Encoding ascii "$env:TEMP/ssm-check.json"
 aws ssm send-command --region $R --instance-ids <id> --document-name AWS-RunShellScript --parameters "file://$env:TEMP/ssm-check.json" --query Command.CommandId --output text
 aws ssm get-command-invocation --region $R --command-id <cid> --instance-id <id> --query StandardOutputContent --output text
-# Expected: "=== first boot done <time> ===" · "/dev/nvme1n1 ext4 leave-agent-data"
+# Expected: "=== first boot done <time> ===" · exactly ONE boot listed (a second boot
+#           within minutes of launch means something reset the host mid-script and every
+#           unflushed write of first boot is a zero-length file: the 2026-10-23 replacement,
+#           reset by the status-check alarm's recover action) · "/dev/nvme1n1 ext4 leave-agent-data"
 #           · app backups lost+found pgdata platform proxy · proxy-caddy-1 and proxy-hello-1 Up in the container table
 #           · the two leave-impact timers listed with a next run · BACKUP_BUCKET=leave-impact-backup-<account>
 #    The platform checkout is what the host pulled from GitHub main at boot: a change
