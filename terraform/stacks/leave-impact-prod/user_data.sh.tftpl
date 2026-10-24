@@ -5,8 +5,8 @@
 # site does not answer. This is cloud-init "until the app exists" (DESIGN); it
 # lays the host down — Docker, the data volume, the proxy stack, the shared
 # `web` network. The application stack is the deploy job's (deploy/instance/
-# deploy.sh), never this script's: a replaced instance serves the hello until
-# the next approved deploy lands the app on it.
+# deploy.sh), never this script's: a replaced instance answers 502 from the
+# proxy until the next approved deploy lands the app on it.
 set -euo pipefail
 exec > >(tee -a /var/log/leave-agent-boot.log) 2>&1
 echo "=== leave-agent first boot $(date -u +%FT%TZ) ==="
@@ -62,13 +62,13 @@ umask 022
 
 # --- The shared `web` network and the proxy stack -----------------------------
 # The proxy owns `web` (compose.yaml in the repo declares it external); every
-# application stack joins it and publishes nothing to the host. Caddy is the
-# same proxy the box runs, so the two hosts read alike. `trusted_proxies` is
-# rendered from the same Terraform variable as the security group's ingress
-# rules — one pinned list, not another copy. The `hello` service answers the
-# hostname until the application has an HTTP surface; the Caddyfile's
-# reverse_proxy target flips then.
-docker network inspect web >/dev/null 2>&1 || docker network create web
+# application stack joins it and publishes nothing to the host. Its subnet is
+# pinned so the range is a contract the application can trust for forwarded
+# headers (projects/leave-impact/README.md), not whatever Docker allocated
+# first on this boot. Caddy is the same proxy the box runs, so the two hosts
+# read alike. `trusted_proxies` is rendered from the same Terraform variable
+# as the security group's ingress rules — one pinned list, not another copy.
+docker network inspect web >/dev/null 2>&1 || docker network create --subnet 172.18.0.0/16 web
 install -d "$DATA_MNT/proxy" "$DATA_MNT/app" "$DATA_MNT/pgdata"
 cat > "$DATA_MNT/proxy/Caddyfile" <<'EOF'
 {
@@ -87,7 +87,16 @@ cat > "$DATA_MNT/proxy/Caddyfile" <<'EOF'
 
 ${app_hostname} {
 	tls /certs/origin.pem /certs/origin.key
-	reverse_proxy hello:80 {
+	# The application by its Compose service name on `web`; its container
+	# publishes nothing. Before the deploy lands it the name does not resolve
+	# and Caddy answers 502: a replaced host is visibly "proxy up, no app".
+	reverse_proxy app:8000 {
+		# The replay narration is Server-Sent Events. Caddy flushes a
+		# text/event-stream response immediately whatever this is set to
+		# (reverse_proxy docs, "Streaming", 2.11); the line states the intent
+		# and covers a streamed route that lacks the type, as the box's
+		# SteamLens stanza does.
+		flush_interval -1
 		# One entry, the verified visitor: the incoming header already carries
 		# Cloudflare's own hops, and appending would put an edge IP last. Same
 		# contract as the box's stanzas.
@@ -107,14 +116,6 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certs:/certs:ro
       - caddy-data:/data
-    networks: [web]
-  hello:
-    # Stock multi-arch echo service; shows the request as the app will see it
-    # (cf-ray, the verified visitor IP in X-Forwarded-For).
-    image: traefik/whoami:v1.11
-    restart: unless-stopped
-    environment:
-      WHOAMI_NAME: leave-agent hello (the host, before the application)
     networks: [web]
 volumes:
   caddy-data:
