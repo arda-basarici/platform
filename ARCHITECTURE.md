@@ -48,7 +48,7 @@ flowchart TD
     hr., hr-w3. and hr-w4.`"]
     C2 -->|"docker network web"| LA["`leave-impact app + PostgreSQL
     leave-impact repo, deploy/instance
-    (a hello page until the first deploy)`"]
+    (502 from the proxy until the first deploy)`"]
     SL --> SLDB[("SQLite, bind-mounted")]
     FR --> FRDB[("MariaDB volume")]
     LA --> LADB[("PostgreSQL on the data volume")]
@@ -63,7 +63,7 @@ The rules that make them the same machine twice:
 | TLS at the origin is a Cloudflare Origin CA pair, never ACME | one pair for `*.ardabasarici.dev`, copied from the workstation | one pair issued for this host alone, read from SSM at first boot |
 | Caddy trusts `CF-Connecting-IP` only from a Cloudflare peer | global `trusted_proxies` block | same block, rendered by cloud-init |
 | Applications join `web` as an external network and publish no port | created by the `docker` role | created by cloud-init |
-| The proxy reaches an application by its Compose container name | `steamlens-app-1:8000`, `frappe-frontend-1:8080` | the app's service name (`hello:80` until the first deploy) |
+| The proxy reaches an application by its Compose container name | `steamlens-app-1:8000`, `frappe-frontend-1:8080` | the app's service name, `app:8000` (an echo service held the stanza until the application's first HTTP surface, flipped 2026-10-24) |
 | Administrative access | key-only ssh, root login off | no ssh at all; SSM Session Manager |
 
 What differs is how each host came to exist. The box was provisioned by hand from
@@ -72,8 +72,9 @@ play under `ansible/` (the section "The box from a blank host", below). The app 
 `terraform apply` plus a first-boot script (`user_data.sh.tftpl`) that installs
 Docker and a checksum-pinned Compose plugin, formats and mounts the data volume on
 first boot only, waits for the origin pair to appear in Parameter Store, writes the
-proxy's Caddyfile and starts it. A replaced instance serves a hello page until the
-next approved deploy lands the application.
+proxy's Caddyfile and starts it. A replaced instance answers 502 from the proxy
+until the next approved deploy lands the application (until 2026-10-24 an echo
+page stood in the stanza; the flip to the application replaced the instance).
 
 ## The four paths
 
@@ -283,7 +284,9 @@ outside both zone tokens, and two alert toggles do not justify a wider one. Five
 UptimeRobot monitors (free tier, one account, e-mail alerts): `steamlens` as an HTTP
 check on `/healthz` since 2026-08-10, and since 2026-08-30 keyword checks that must
 find the upstream's own body — `pong` from Frappe's `/api/method/ping` on `hr`,
-`hr-w3` and (since 2026-10-15) `hr-w4`, the hello page's name on `leave-agent` —
+`hr-w3` and (since 2026-10-15) `hr-w4`, `"ready":true` from the application's
+`/ready` on `leave-agent` (since 2026-10-24; the echo page's name before; the
+monitor edited in place, its first alert tested by a deliberate stop that day) —
 every 5 minutes; a keyword distinguishes "the upstream answered" from "Cloudflare
 answered something". A build site (a world site raised to be read and dropped, as
 `hr-w2` was on 2026-09-15) has no monitor by ruling: short-lived, and a down served
@@ -466,8 +469,8 @@ first and re-put right after, then read back.
 - **The app host is single-tenant.** Its proxy configuration is laid down by
   `user_data.sh.tftpl` inside `stacks/leave-impact-prod`, and the `projects/`-style
   adapter is extracted there only if a second tenant arrives (DESIGN, the ownership
-  table). The Caddyfile flip from the hello page to the app, when its first HTTP
-  surface lands, happens in that stack.
+  table). The Caddyfile flip from the echo page to the app happened in that stack
+  on 2026-10-24, one replacement.
 - **No backup for Frappe's MariaDB.** The trigger is data worth keeping: a world
   site whose loss is not a day's regeneration. The golden world is regenerable at
   that cost, so the demo milestone did not require it. (The app host's PostgreSQL
@@ -504,8 +507,7 @@ first and re-put right after, then read back.
 - **Replacing the app host's instance costs minutes of downtime, accepted.** A
   change to `user_data.sh.tftpl` replaces the instance (the data volume is
   re-attached, the Elastic IP moves with it); there is no blue-green or second
-  instance, and none is planned while one hello page or one application is what
-  goes dark. Exercised 2026-08-29 (about three minutes end to end);
+  instance, and none is planned while one application is what goes dark. Exercised 2026-08-29 (about three minutes end to end);
   `runbooks/replace-the-app-host.md` is the procedure and its seven checks,
   including the one that tells a re-attached data volume from a freshly
   formatted one.
