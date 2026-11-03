@@ -45,7 +45,7 @@ flowchart TD
     steam-lens repo`"]
     C1 -->|"docker network web"| FR["`frappe-frontend-1
     leave-impact repo, deploy/frappe
-    hr., hr-w3. and hr-w4.`"]
+    hr., hr-w3. and hr-w4. (behind Access since 2026-11-03)`"]
     C2 -->|"docker network web"| LA["`leave-impact app + PostgreSQL
     leave-impact repo, deploy/instance
     (502 from the proxy until the first deploy)`"]
@@ -288,7 +288,12 @@ find the upstream's own body — `pong` from Frappe's `/api/method/ping` on `hr`
 `/ready` on `leave-agent` (since 2026-10-24; the echo page's name before; the
 monitor edited in place, its first alert tested by a deliberate stop that day) —
 every 5 minutes; a keyword distinguishes "the upstream answered" from "Cloudflare
-answered something". A build site (a world site raised to be read and dropped, as
+answered something". Since 2026-11-03 the three Frappe hostnames sit behind
+Cloudflare Access (`stacks/edge/access.tf`: a service token for the machine clients,
+one-time PIN for the operator), and the ping path is carved out by a path-scoped
+Bypass application so the monitors still read Frappe; a monitor on a gated path
+would read Access's login redirect and prove only that the edge answered. A build
+site (a world site raised to be read and dropped, as
 `hr-w2` was on 2026-09-15) has no monitor by ruling: short-lived, and a down served
 world site already signals the bench. A served world site (`hr-w3`, the first
 development world's home; `hr-w4`, the measurement world's, since 2026-10-15) gets
@@ -416,7 +421,7 @@ run, from the checkout, knows that tenant's data.
 | `projects/steamlens/` | `sites.caddy` · `backup.sh` · `steamlens-backup.service` · `steamlens-backup.timer` (unit names are host-global, so they carry the tenant) · `restore-check.sh` · `steamlens-restore-check.service` · `steamlens-restore-check.timer` (monthly, read-only) · `backup.enc.env` (`BACKUP_PING_URL`, `RESTORE_PING_URL`) · README (the contract values, the backup setup, the restore check and the restore procedure) | fast |
 | `projects/leave-impact/` | `sites.caddy` (the `hr`, `hr-w3` and `hr-w4` stanzas) · `backup.sh` · `leave-impact-backup.service` · `leave-impact-backup.timer` · `restore-check.sh` · `leave-impact-restore-check.service` · `leave-impact-restore-check.timer` (the app host's PostgreSQL; installed by cloud-init from the host's checkout, root-run) · README (the contract values, including the deploy role ARN, the instance tag, the SSM prefix, the backup bucket and the database coordinates) | fast |
 | `terraform/stacks/leave-impact-prod/` | VPC, subnet, IGW, route table · security group · instance role + profile (SSM core, reads of the ten named `/leave-agent/` parameters, put and get on the backup bucket, Bedrock invoke and token count on a shortlist) · the instance (AL2023 arm64 via the SSM public AMI parameter), its EIP, the data volume · the backup bucket (versioned, create-only for every principal, lifecycle-pruned to seven dailies and four weeklies) · the GitHub OIDC provider + deploy role · the ten SSM parameter *names* (three host secrets, five read-only vendor principals for the investigator) · the monthly budget · the alerts topic, its e-mail subscription and policy, the two status-check alarms, the adopted cost-anomaly monitor and subscription · the benchmark's world and truth buckets (versioned, TLS-only, create-only on their final prefixes) with the generator, validator and evaluator OIDC roles and the instance role's world read and run-export put · the state bucket itself · `user_data.sh.tftpl` | per stack |
-| `terraform/stacks/edge/` | the zone's twelve records (seven of the eight adopted, the first world site's gone with its site; the three no-mail ones created from code; the two world sites') · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · the bot control (Bot Fight Mode, off since 2026-09-14) · DNSSEC; the zone is a data lookup | per stack |
+| `terraform/stacks/edge/` | the zone's twelve records (seven of the eight adopted, the first world site's gone with its site; the three no-mail ones created from code; the two world sites') · five settings (three adopted, the TLS floor and HSTS created from code) · the two security rulesets · the bot control (Bot Fight Mode, off since 2026-09-14) · DNSSEC · since 2026-11-03 the Frappe hostnames' Access gate (two applications, three policies; the service token is minted in the dashboard and looked up by name, its secret never in state); the zone is a data lookup | per stack |
 | `runbooks/` | `add-a-tenant.md` · `ansible-test-host.md` · `replace-the-app-host.md` · `box-rebuild.md` (written during the 2026-08-30 drill); each written when first exercised | — |
 | `SECRETS.md`, `.sops.yaml` | the secrets policy; the SOPS creation rule (two public age recipients: workstation, recovery) | slow |
 | `scripts/check-cf-ranges.sh` | the check CI and the laptop share: the three pinned copies of Cloudflare's IPv4 ranges (the box Caddyfile, `firewall.sh`, the security group's variable) against each other and, given the published list, against it | on a range change |

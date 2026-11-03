@@ -235,7 +235,6 @@ traffic evidence is a guess, and the free plan's analytics keep one day of it.
 | a paid Cloudflare plan | automated abuse observed on the zone (Security Analytics, a reading, not a feeling) while a machine client still needs an exception from bot control (Super Bot Fight Mode, Pro, is the first tier with one) | the earlier trigger, "a machine client needs an exception", fired on 2026-09-13 and was answered by turning Bot Fight Mode off, not by paying (the decision table below); "more features" is not a trigger |
 | edge-wide response headers (a `http_response_headers_transform` ruleset) | a header every tenant should carry that the origins do not set | `nosniff` rides on the HSTS setting; `X-Frame-Options` / `Permissions-Policy` over Frappe untested; the tenant stanzas set their own |
 | Authenticated Origin Pulls (mTLS edge → origin) | a second control on origin reachability is wanted | both origins already admit Cloudflare ranges only; defense in depth, not a hole |
-| Cloudflare Access in front of the world sites (`hr-w3` and `hr-w4` today) | its own design step | it adds a service-to-service trust boundary (the leave agent's machine path needs a service token), not a browser login toggle |
 | IPv6 at the origins (v6 ranges in `trusted_proxies`, the firewalls, the security group) | an origin record becomes AAAA | Cloudflare dials an origin over the family of its record, and every origin record is an A record; a visitor's IPv6 ends at the edge (`ipv6 = on`). The box drops all forwarded v6 and the instance has no v6 address, so a v6 allowance today would admit no one. When the trigger fires, all three copies gain the `ips-v6` list together and `check-cf-ranges.sh` learns the second list |
 | more custom rules (4 of 5 free slots empty) | the 24-hour security analytics show traffic a rule would address | `cf.threat_score` is retired (always 0); a rule without evidence is a guess |
 
@@ -375,6 +374,18 @@ with their dates so that the list holds only what is open:
   application via its own deploy path → a real restore, timed at about an hour,
   the runbook written during it.
 
+- **Cloudflare Access in front of the Frappe hostnames**, landed 2026-11-03 on the
+  leave-impact stream's ticket of 2026-09-20 (its demo milestone, step 17): one
+  application over `hr`, `hr-w3` and `hr-w4` with a Service Auth policy for one
+  dashboard-minted service token (the machine clients) and an Allow policy for the
+  operator's address by one-time PIN; a second, path-scoped application with a Bypass
+  on `/api/method/ping` so the keyword monitors keep reading Frappe. The token is
+  looked up by name from code and its secret never enters state, the same "names in
+  code, values out of band" idiom as the SSM parameters, which gained the pair's two
+  names. Private connectivity between the hosts stays in the list below: Access gives
+  the token-gated property without a tunnel, and the agent's own hostname stays
+  ungated by ruling (`projects/leave-impact/README.md`, the Access row).
+
 ## Future work, by trigger
 
 The "deliberately absent" table above carries the structural triggers. Beyond it:
@@ -425,7 +436,9 @@ The "deliberately absent" table above carries the structural triggers. Beyond it
   each does to the ranges-only origin clause. An inbound Cloudflare Tunnel was
   considered and dropped: it substitutes for the "443 from Cloudflare ranges"
   clause rather than adding to it, and the origin-side question reopens only if
-  this design lands on Cloudflare Zero Trust.
+  this design lands on Cloudflare Zero Trust. Access in front of the Frappe hostnames
+  (2026-11-03, "Shipped since the extraction") is not that landing: it gates at the edge and leaves the origin
+  clause as it is.
 - **Security depth before the agent's real HTTP surface**: the instance role's
   read scope narrowed (every container reaches the role through IMDS, and Bedrock
   needs that), a custom SSM document replacing `AWS-RunShellScript` for the deploy
