@@ -2,3 +2,5 @@
 # the box's address is what the proxy hides.
 box_origin_ip      = "203.0.113.10"
 app_host_origin_ip = "203.0.113.20"
+# The address the Frappe hostnames' Access policy admits by one-time PIN.
+access_operator_email = "operator@example.com"

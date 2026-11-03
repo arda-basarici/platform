@@ -41,6 +41,13 @@ locals {
     # scripts read them at run time, nothing on disk. Put by the platform's owner.
     backup_ping_url  = { name = "/leave-agent/backup-ping-url", type = "SecureString" }
     restore_ping_url = { name = "/leave-agent/restore-ping-url", type = "SecureString" }
+    # The Cloudflare Access service token the machine clients present at the
+    # Frappe hostnames (the edge stack's access.tf). Minted in the Zero Trust
+    # dashboard and put by the platform's owner; the same pair rides the agent
+    # repository's `benchmark` environment for the two runners. Both halves the
+    # secret class: the id alone names nothing, the pair is the credential.
+    cf_access_client_id     = { name = "/leave-agent/cf-access-client-id", type = "SecureString" }
+    cf_access_client_secret = { name = "/leave-agent/cf-access-client-secret", type = "SecureString" }
   }
 }
 
